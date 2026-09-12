@@ -1,29 +1,39 @@
 # BOLD Daily Feed Card Engine
 
-Prototype for BOLD’s multi-tenant **Daily Feed Card Engine** — a portal-agnostic white-label feed that turns resume-builder dashboards into daily career destinations.
+Interactive multi-tenant **Daily Feed** prototype for BOLD career portals (MyPerfectResume, ResumeNow, Bold.pro, Monster).
 
-## Layout
+GitHub target: [rsdproduct/card-engine](https://github.com/rsdproduct/card-engine) (app at repo root).
 
-```
-daily-feed-engine/   # Next.js App Router application (src/)
-```
+## What's included
 
-## Run
+- Dual-pane experience: live consumer portal feed + God Mode engine controller
+- Four card templates (Micro-Action, Quick-Stitch, Recruiter Ping, Digest)
+- 10 domain-rich seed cards with portal / lifecycle / entry ranking boosts
+- ICL live attribute badges, authoring drawer, telemetry + pruning inspector
+- Client-side persistence via LocalStorage
+- Framer Motion feed reorder / inject / prune animations
+
+## Run locally
 
 ```bash
-cd daily-feed-engine
 npm install
 npm run dev -- --port 43127
 ```
 
-App: [http://127.0.0.1:43127](http://127.0.0.1:43127)
+Open [http://127.0.0.1:43127](http://127.0.0.1:43127).
 
-## Capabilities
+## Stack
 
-- Portal themes: MyPerfectResume, ResumeNow, Bold.pro, Monster
-- Lifecycle + entry modifier ranking
-- Templates A–D, 10 seed cards, Quick-Stitch modal
-- God Mode toolbar, ICL badges, authoring + telemetry drawers
-- LocalStorage persistence
+- Next.js App Router · TypeScript · Tailwind CSS
+- Framer Motion · Lucide React · clsx · tailwind-merge
+
+## Scripts
+
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Dev server |
+| `npm run build` | Production build |
+| `npm run start` | Serve production build |
+| `npm run lint` | ESLint |
 
 No auth or database — fully client-side for zero-config Vercel demos.
