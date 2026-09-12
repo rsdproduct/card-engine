@@ -1,0 +1,16 @@
+{
+  "name": "card-engine",
+  "install": "npm ci",
+  "terminals": [
+    {
+      "name": "next-dev",
+      "command": "npm run dev -- --port 43127"
+    }
+  ],
+  "ports": [
+    {
+      "name": "Next.js dev server",
+      "port": 43127
+    }
+  ]
+}
