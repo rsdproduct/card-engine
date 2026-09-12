@@ -1,26 +1,29 @@
-# Card Engine Prototype
+# BOLD Daily Feed Card Engine
 
-Scaffold for the **Daily Feed Engine** — a Next.js app for a daily feed card engine prototype.
+Prototype for BOLD’s multi-tenant **Daily Feed Card Engine** — a portal-agnostic white-label feed that turns resume-builder dashboards into daily career destinations.
 
-## Project layout
+## Layout
 
 ```
-daily-feed-engine/   # Next.js (App Router) application
+daily-feed-engine/   # Next.js App Router application (src/)
 ```
 
-## Run locally
+## Run
 
 ```bash
 cd daily-feed-engine
 npm install
-npm run dev
+npm run dev -- --port 43127
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+App: [http://127.0.0.1:43127](http://127.0.0.1:43127)
 
-## Stack
+## Capabilities
 
-- Next.js (App Router) + TypeScript + Tailwind CSS + ESLint + Turbopack
-- Extra UI deps: `lucide-react`, `framer-motion`, `clsx`, `tailwind-merge`
+- Portal themes: MyPerfectResume, ResumeNow, Bold.pro, Monster
+- Lifecycle + entry modifier ranking
+- Templates A–D, 10 seed cards, Quick-Stitch modal
+- God Mode toolbar, ICL badges, authoring + telemetry drawers
+- LocalStorage persistence
 
-This repo currently contains scaffolding only — no auth, database, or product features yet.
+No auth or database — fully client-side for zero-config Vercel demos.

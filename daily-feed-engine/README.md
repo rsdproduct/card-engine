@@ -1,34 +1,36 @@
-# Daily Feed Engine
+# BOLD Daily Feed Card Engine
 
-Next.js scaffold for the daily feed card engine prototype.
+Interactive multi-tenant **Daily Feed** prototype for BOLD career portals (MyPerfectResume, ResumeNow, Bold.pro, Monster).
 
-## Getting started
+## What's included
+
+- Dual-pane experience: live consumer portal feed + God Mode engine controller
+- Four card templates (Micro-Action, Quick-Stitch, Recruiter Ping, Digest)
+- 10 domain-rich seed cards with portal / lifecycle / entry ranking boosts
+- ICL live attribute badges, authoring drawer, telemetry + pruning inspector
+- Client-side persistence via LocalStorage
+- Framer Motion feed reorder / inject / prune animations
+
+## Run locally
 
 ```bash
 cd daily-feed-engine
 npm install
-npm run dev
+npm run dev -- --port 43127
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Edit `app/page.tsx` to start building.
+Open [http://127.0.0.1:43127](http://127.0.0.1:43127).
+
+## Stack
+
+- Next.js App Router · TypeScript · Tailwind CSS
+- Framer Motion · Lucide React · clsx · tailwind-merge
 
 ## Scripts
 
 | Command | Description |
 | --- | --- |
-| `npm run dev` | Start the Turbopack dev server |
+| `npm run dev` | Dev server |
 | `npm run build` | Production build |
-| `npm run start` | Serve the production build |
-| `npm run lint` | Run ESLint |
-
-## Dependencies
-
-Core: Next.js, React, TypeScript, Tailwind CSS, ESLint
-
-UI helpers already installed:
-
-- `lucide-react` — icons
-- `framer-motion` — animation
-- `clsx` + `tailwind-merge` — className utilities
-
-Scaffolding only — no auth, database, or product features in this slice.
+| `npm run start` | Serve production build |
+| `npm run lint` | ESLint |

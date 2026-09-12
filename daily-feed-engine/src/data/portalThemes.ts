@@ -1,0 +1,77 @@
+import type { PortalTheme } from "@/types/cardEngine";
+
+export const portalThemes: Record<string, PortalTheme> = {
+  mpr: {
+    id: "mpr",
+    name: "MyPerfectResume",
+    shortName: "MPR",
+    logoText: "MyPerfectResume",
+    background: "#F4F7F9",
+    surface: "#FFFFFF",
+    text: "#0F2537",
+    muted: "#5A6B7A",
+    accent: "#00A88F",
+    accentSecondary: "#0F2537",
+    border: "#D5DEE6",
+    headerBadge: "Resume Strength: 88% · Strong",
+    dark: false,
+  },
+  rna: {
+    id: "rna",
+    name: "ResumeNow",
+    shortName: "RNA",
+    logoText: "ResumeNow",
+    background: "#F8FAFC",
+    surface: "#FFFFFF",
+    text: "#0F172A",
+    muted: "#64748B",
+    accent: "#FF5A36",
+    accentSecondary: "#0066FF",
+    border: "#E2E8F0",
+    headerBadge: "⚡ Quick Export Ready",
+    dark: false,
+  },
+  boldpro: {
+    id: "boldpro",
+    name: "Bold.pro",
+    shortName: "Bold.pro",
+    logoText: "BOLD.PRO",
+    background: "#0D0F17",
+    surface: "#161926",
+    text: "#F8FAFC",
+    muted: "#94A3B8",
+    accent: "#6366F1",
+    accentSecondary: "#A855F7",
+    border: "rgba(99, 102, 241, 0.35)",
+    headerBadge: "bold.pro/ryan-darling · Public Profile Active",
+    dark: true,
+    glow: true,
+  },
+  monster: {
+    id: "monster",
+    name: "Monster.com",
+    shortName: "Monster",
+    logoText: "MONSTER",
+    background: "#FFFFFF",
+    surface: "#FFFFFF",
+    text: "#1A1A1A",
+    muted: "#4B5563",
+    accent: "#6E44FF",
+    accentSecondary: "#D4FF00",
+    border: "#E5E7EB",
+    headerBadge: "42 New Jobs Matching Your Profile",
+    dark: false,
+  },
+};
+
+export const lifecycleLabels: Record<string, string> = {
+  pre_conversion: "Pre-Conversion",
+  early_1_7: "Early 1–7 Days",
+  long_term_8_plus: "Long-Term 8+ Days",
+  post_cancellation: "Post-Cancellation",
+};
+
+export const entryModifierLabels: Record<string, string> = {
+  uploader: "Uploader",
+  scratch_builder: "Scratch Builder",
+};
