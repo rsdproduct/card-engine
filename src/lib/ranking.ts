@@ -5,7 +5,23 @@ import type {
   IclAttributes,
   LifecycleState,
   PortalId,
+  PortalScopeItem,
 } from "@/types/cardEngine";
+import {
+  normalizePortalScope,
+  portalScopeMatches,
+} from "@/lib/portalScope";
+
+export function getCardPortalScope(card: FeedCard): PortalScopeItem[] {
+  if (card.portalScope?.length) return normalizePortalScope(card.portalScope);
+  if (card.targeting?.portalScope?.length) {
+    return normalizePortalScope(card.targeting.portalScope);
+  }
+  if (card.targeting?.portals?.length) {
+    return normalizePortalScope(card.targeting.portals);
+  }
+  return ["ALL"];
+}
 
 export function scoreCard(
   card: FeedCard,
@@ -51,6 +67,7 @@ export function rankCards(
   const avgCtr = averageCtr(ctrStats);
 
   return [...visible]
+    .filter((card) => portalScopeMatches(getCardPortalScope(card), portal))
     .filter((card) => {
       if (!pruningEnabled) return true;
       const ctr = getCtr(ctrStats, card.id);

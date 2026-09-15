@@ -1,7 +1,7 @@
 import type { EnginePersistedState, FeedCard } from "@/types/cardEngine";
 
 export const STORAGE_KEY = "bold-daily-feed-engine-v2";
-export const STORAGE_VERSION = 2;
+export const STORAGE_VERSION = 3;
 
 function hasSupabaseEnv() {
   return Boolean(

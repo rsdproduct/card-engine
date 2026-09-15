@@ -21,6 +21,11 @@ import {
   syncCampaignsToSupabase,
 } from "@/lib/persistence";
 import { averageCtr, getCtr, rankCards } from "@/lib/ranking";
+import {
+  ALL_PORTAL_IDS,
+  normalizePortalScope,
+  resolveTargetPortalIds,
+} from "@/lib/portalScope";
 import type {
   AppMode,
   AudienceTargeting,
@@ -172,17 +177,40 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
       const parsed = loadFromLocalStorage();
       if (parsed) {
         if (parsed.mode) setModeState(parsed.mode);
-        if (parsed.portal) setPortalState(parsed.portal);
+        if (parsed.portal && ALL_PORTAL_IDS.includes(parsed.portal)) {
+          setPortalState(parsed.portal);
+        }
         if (parsed.lifecycle) setLifecycleState(parsed.lifecycle);
         if (parsed.entryModifier) setEntryModifierState(parsed.entryModifier);
         if (parsed.icl) setIcl({ ...defaultIcl, ...parsed.icl });
         if (parsed.cards?.length) {
-          // Drop removed Phoenix ATS if lingering in old storage
-          setCards(
-            parsed.cards.filter(
-              (c) => c.id !== "phoenix-ats" && !c.headline?.includes("ATS Health"),
-            ),
+          const cleaned = parsed.cards.filter(
+            (c) => c.id !== "phoenix-ats" && !c.headline?.includes("ATS Health"),
           );
+          // v3: refresh seed cards with portalScope / Zeti; keep custom campaigns
+          if ((parsed.version ?? 0) < 3) {
+            const custom = cleaned.filter((c) => c.custom || c.campaignId);
+            const customIds = new Set(custom.map((c) => c.id));
+            setCards([
+              ...initialCards.filter((c) => !customIds.has(c.id)),
+              ...custom.map((c) => {
+                const scope = normalizePortalScope(
+                  c.portalScope ??
+                    c.targeting?.portalScope ??
+                    c.targeting?.portals,
+                );
+                return {
+                  ...c,
+                  portalScope: scope,
+                  targeting: c.targeting
+                    ? { ...c.targeting, portalScope: scope }
+                    : { portalScope: scope, lifecycles: [], searchIntents: [], experienceTiers: [] },
+                };
+              }),
+            ]);
+          } else {
+            setCards(cleaned);
+          }
         }
         if (parsed.marketplace)
           setMarketplace({ ...defaultMarketplace, ...parsed.marketplace });
@@ -579,9 +607,13 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
       }
 
       const portalBoost: FeedCard["portalBoost"] = {};
-      if (!input.targeting.portals.includes("all")) {
-        for (const p of input.targeting.portals) {
-          if (p !== "all") portalBoost[p as PortalId] = 14;
+      const scope = normalizePortalScope(
+        input.targeting.portalScope ?? input.targeting.portals,
+      );
+      const concrete = resolveTargetPortalIds(scope);
+      if (!scope.includes("ALL")) {
+        for (const p of concrete) {
+          portalBoost[p] = 14;
         }
       }
 
@@ -589,6 +621,11 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
       for (const life of input.targeting.lifecycles) {
         lifecycleBoost[life] = 8;
       }
+
+      const targeting: AudienceTargeting = {
+        ...input.targeting,
+        portalScope: scope,
+      };
 
       const card: FeedCard = {
         id,
@@ -605,7 +642,8 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
         timestampLabel: "Just published",
         priority: 97,
         custom: true,
-        targeting: input.targeting,
+        targeting,
+        portalScope: scope,
         portalBoost: Object.keys(portalBoost).length ? portalBoost : undefined,
         lifecycleBoost: Object.keys(lifecycleBoost).length
           ? lifecycleBoost
@@ -742,7 +780,7 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
     icl,
     cards,
     rankedCards,
-    theme: portalThemes[portal],
+    theme: portalThemes[portal] ?? portalThemes.mpr,
     marketplace,
     telemetry,
     ctrStats,
