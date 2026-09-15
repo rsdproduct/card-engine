@@ -267,7 +267,10 @@ export function AuthoringStudio() {
   }, [allPortalsSelected, targeting]);
 
   return (
-    <div className="min-h-[calc(100vh-4.5rem)] bg-[linear-gradient(180deg,#F4F7F9_0%,#EAF3F1_45%,#F8FAFC_100%)]">
+    <div
+      data-testid="pm-studio"
+      className="min-h-[calc(100vh-4.5rem)] bg-[linear-gradient(180deg,#F4F7F9_0%,#EAF3F1_45%,#F8FAFC_100%)]"
+    >
       <div className="mx-auto max-w-7xl px-4 py-6">
         <header className="mb-6">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#00A88F]">

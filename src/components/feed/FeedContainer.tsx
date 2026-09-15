@@ -31,6 +31,8 @@ export function UniformCard({ card }: { card: FeedCard }) {
   return (
     <motion.article
       layout
+      data-testid="feed-card"
+      data-card-id={card.id}
       initial={{ opacity: 0, y: 18, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -12, scale: 0.96 }}
@@ -166,7 +168,11 @@ export function FeedContainer() {
   }
 
   return (
-    <motion.div layout className="mx-auto flex max-w-xl flex-col gap-4">
+    <motion.div
+      layout
+      data-testid="candidate-feed"
+      className="mx-auto flex max-w-xl flex-col gap-4"
+    >
       <AnimatePresence mode="popLayout">
         {rankedCards.map((card) => (
           <UniformCard key={card.id} card={card} />

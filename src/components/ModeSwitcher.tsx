@@ -15,7 +15,10 @@ export function ModeSwitcher() {
   const { mode, setMode, persistenceLabel } = useFeedEngine();
 
   return (
-    <div className="border-b border-[#D5DEE6] bg-[#0F2537] text-white">
+    <div
+      data-testid="mode-switcher"
+      className="border-b border-[#D5DEE6] bg-[#0F2537] text-white"
+    >
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#5EEAD4]">
@@ -34,6 +37,9 @@ export function ModeSwitcher() {
               <button
                 key={m.id}
                 type="button"
+                data-testid={
+                  m.id === "studio" ? "mode-studio" : "mode-candidate"
+                }
                 onClick={() => setMode(m.id)}
                 className={cn(
                   "relative z-10 flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold transition sm:flex-none sm:px-4",
