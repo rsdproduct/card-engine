@@ -1,11 +1,22 @@
 import type { FeedCard } from "@/types/cardEngine";
+import { HEADER_IMAGE_PRESETS } from "./imagePresets";
+
+const img = (id: string) =>
+  HEADER_IMAGE_PRESETS.find((p) => p.id === id)?.url ?? "";
 
 export const initialCards: FeedCard[] = [
   {
     id: "role-radar",
     template: "A",
+    campaignName: "Role Radar",
     headline: "Where are you headed next?",
+    headlineVariantB: "What’s your next title?",
+    activeVariant: "A",
     subtitle: "Tell us your target role so we can tune job matches and salary intel.",
+    bodyCopy: "One tap updates your ICL target_role and re-ranks the feed.",
+    headerImage: img("team-collab"),
+    brandTag: "Career Path",
+    timestampLabel: "Just now",
     priority: 90,
     portalBoost: { monster: 8, boldpro: 4 },
     content: {
@@ -20,8 +31,15 @@ export const initialCards: FeedCard[] = [
   {
     id: "work-style",
     template: "A",
+    campaignName: "Work Style Snapshot",
     headline: "How do you want to work?",
+    headlineVariantB: "Pick your ideal work setup",
+    activeVariant: "A",
     subtitle: "We’ll prioritize roles that match your work style.",
+    bodyCopy: "Remote, hybrid, or in-office — feeds MCB matching filters.",
+    headerImage: img("laptop-city"),
+    brandTag: "Preferences",
+    timestampLabel: "2h ago",
     priority: 82,
     content: {
       options: [
@@ -35,10 +53,24 @@ export const initialCards: FeedCard[] = [
   {
     id: "salary-pulse",
     template: "A",
+    campaignName: "Salary Pulse",
     headline: "Product Managers in SF earn $142K–$178K. Does that track?",
-    subtitle: "Calibrate your salary band to unlock sharper market intel.",
+    headlineVariantB: "Is your band in the $142K–$178K range for PMs in SF?",
+    activeVariant: "A",
+    subtitle: "Calibrate your salary band — prioritized for 5+ YoE cohorts.",
+    bodyCopy: "Senior / executive candidates get sharper market intel when salary_band is set.",
+    headerImage: img("skyline"),
+    brandTag: "Market Intel",
+    timestampLabel: "Today",
     priority: 78,
     lifecycleBoost: { long_term_8_plus: 12, post_cancellation: 10 },
+    entryBoost: { scratch_builder: 4 },
+    targeting: {
+      portals: ["all"],
+      lifecycles: ["long_term_8_plus", "post_cancellation"],
+      searchIntents: ["employed_career_growth", "passively_exploring"],
+      experienceTiers: ["senior"],
+    },
     content: {
       options: [
         { id: "about-right", label: "About right", value: "$142K–$178K" },
@@ -51,8 +83,15 @@ export const initialCards: FeedCard[] = [
   {
     id: "skills-spotlight",
     template: "A",
+    campaignName: "Skills Spotlight",
     headline: "Which strengths would you put front & center?",
+    headlineVariantB: "What should we emphasize on your next tailor pass?",
+    activeVariant: "A",
     subtitle: "Pick the skill we should emphasize in your next tailor pass.",
+    bodyCopy: "Feeds resume completeness scoring and RTJ keyword suggestions.",
+    headerImage: img("desk-resume"),
+    brandTag: "Skills",
+    timestampLabel: "Yesterday",
     priority: 74,
     entryBoost: { scratch_builder: 8 },
     content: {
@@ -68,30 +107,61 @@ export const initialCards: FeedCard[] = [
   {
     id: "urgency-calibrator",
     template: "A",
+    campaignName: "Urgency Calibrator",
     headline: "Where’s your head at with your job search?",
-    subtitle: "Urgency changes which opportunities we surface first.",
+    headlineVariantB: "How hot is your search right now?",
+    activeVariant: "A",
+    subtitle: "Two quick taps — urgency first, then preferred next step.",
+    bodyCopy: "Multi-step micro-profiling: Q1 sets urgency_tier, Q2 sets target_role focus.",
+    headerImage: img("interview"),
+    brandTag: "Intent",
+    timestampLabel: "Just now",
     priority: 88,
     lifecycleBoost: { post_cancellation: 15, early_1_7: 6 },
     content: {
-      options: [
-        { id: "actively", label: "🔥 Actively applying", value: "Actively applying" },
-        { id: "quietly", label: "👀 Quietly exploring", value: "Quietly exploring" },
-        { id: "options", label: "🧘 Keeping options open", value: "Keeping options open" },
+      steps: [
+        {
+          id: "urgency-q1",
+          prompt: "Where’s your head at with your job search?",
+          options: [
+            { id: "actively", label: "🔥 Actively applying", value: "Actively applying" },
+            { id: "quietly", label: "👀 Quietly exploring", value: "Quietly exploring" },
+            { id: "options", label: "🧘 Keeping options open", value: "Keeping options open" },
+          ],
+          iclKey: "urgency_tier",
+        },
+        {
+          id: "urgency-q2",
+          prompt: "What should we optimize for next?",
+          options: [
+            { id: "more-matches", label: "More role matches", value: "Senior PM" },
+            { id: "salary-intel", label: "Salary & level intel", value: "Director of Product" },
+            { id: "recruiter-reach", label: "Recruiter reach", value: "VP Product" },
+          ],
+          iclKey: "target_role",
+        },
       ],
-      iclKey: "urgency_tier",
     },
   },
   {
-    id: "quick-stitch-rtj",
+    id: "resume-tailoring",
     template: "B",
+    campaignName: "Resume Tailoring & Completeness",
     headline: "92% Match: Senior PM at TechCorp",
+    headlineVariantB: "3 ATS keywords missing from your RTJ tailor",
+    activeVariant: "A",
     subtitle: "Missing 3 ATS keywords — tailor in about 10 seconds.",
+    bodyCopy: "Completeness score + RTJ keyword gaps. Opens Quick-Stitch overlay.",
+    headerImage: img("desk-resume"),
+    brandTag: "RTJ Tailor",
+    timestampLabel: "1h ago",
     priority: 86,
-    portalBoost: { monster: 10, rna: 6 },
+    portalBoost: { monster: 10, rna: 6, mpr: 8 },
     content: {
       matchScore: 92,
       matchLabel: "Senior PM at TechCorp",
       missingKeywords: ["SQL", "Product Analytics", "Roadmapping"],
+      completenessScore: 81,
       ctaLabel: "Tailor Resume in 10s",
       modalTitle: "Quick-Stitch ATS Keyword Injection",
       modalPreview: [
@@ -102,32 +172,19 @@ export const initialCards: FeedCard[] = [
     },
   },
   {
-    id: "phoenix-ats",
-    template: "B",
-    headline: "ATS Health Alert: Parsing score at 74%",
-    subtitle: "2 formatting blockers found — fix before your next application.",
-    priority: 70,
-    portalBoost: { rna: 25, mpr: 8 },
-    entryBoost: { uploader: 20 },
-    content: {
-      healthScore: 74,
-      blockers: ["Multi-column layout", "Icon-only section headers"],
-      ctaLabel: "Run Phoenix Fix",
-      modalTitle: "Phoenix ATS Diagnostic Preview",
-      modalPreview: [
-        "Flatten multi-column experience block",
-        "Replace icon headers with text labels",
-        "Re-score parsing after format normalize",
-      ],
-    },
-  },
-  {
-    id: "employer-ping",
+    id: "recruiter-radar",
     template: "C",
+    campaignName: "Recruiter Radar",
     headline: "A Fintech employer in Chicago searched for candidates with your background",
-    subtitle: "Signal that you’re open to inquiries to appear in MCB Talent Marketplace.",
+    headlineVariantB: "42 recruiters viewed profiles like yours this week",
+    activeVariant: "A",
+    subtitle: "Signal that you’re open to inquiries on the MCB Talent Marketplace.",
+    bodyCopy: "B2C2B search pulse — toggle Open-to-Inquiries for recruiter discovery.",
+    headerImage: img("team-collab"),
+    brandTag: "MCB Marketplace",
+    timestampLabel: "3h ago",
     priority: 80,
-    portalBoost: { monster: 12 },
+    portalBoost: { monster: 12, rna: 4 },
     lifecycleBoost: { early_1_7: 8, long_term_8_plus: 6 },
     content: {
       statLabel: "recruiters searched your profile this week",
@@ -140,8 +197,15 @@ export const initialCards: FeedCard[] = [
   {
     id: "vanity-claim",
     template: "C",
+    campaignName: "Bold.pro Profile Claim",
     headline: "Claim your public web profile",
+    headlineVariantB: "Lock bold.pro/ryan-darling before it’s gone",
+    activeVariant: "A",
     subtitle: "bold.pro/ryan-darling is available — lock it before someone else does.",
+    bodyCopy: "Public portfolio URL for mobile-first Bold.pro candidates.",
+    headerImage: img("laptop-city"),
+    brandTag: "Bold.pro",
+    timestampLabel: "Today",
     priority: 68,
     portalBoost: { boldpro: 30 },
     content: {
@@ -155,8 +219,15 @@ export const initialCards: FeedCard[] = [
   {
     id: "weekly-digest",
     template: "D",
+    campaignName: "Weekly Footprint Digest",
     headline: "Weekly Career Footprint",
+    headlineVariantB: "Your 7-day visibility loop at a glance",
+    activeVariant: "A",
     subtitle: "Your visibility loop for the last 7 days.",
+    bodyCopy: "Multi-stat micro dashboard: searches, views, and tailor actions.",
+    headerImage: img("skyline"),
+    brandTag: "Digest",
+    timestampLabel: "This week",
     priority: 60,
     lifecycleBoost: { long_term_8_plus: 14, post_cancellation: 12 },
     content: {

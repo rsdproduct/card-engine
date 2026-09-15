@@ -11,7 +11,7 @@ export function CardTemplateC({ card }: { card: FeedCard }) {
   const enabled = marketplace[content.toggleKey];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center gap-3">
         <div className="relative flex size-11 items-center justify-center">
           <motion.span
@@ -41,7 +41,8 @@ export function CardTemplateC({ card }: { card: FeedCard }) {
         </p>
       ) : null}
 
-      <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-3"
+      <label
+        className="flex cursor-pointer items-center justify-between gap-3 rounded-xl border px-3 py-3"
         style={{ borderColor: theme.border }}
       >
         <span className="text-sm font-medium">{content.toggleLabel}</span>

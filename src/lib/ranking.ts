@@ -20,14 +20,20 @@ export function scoreCard(
   score += card.entryBoost?.[entryModifier] ?? 0;
 
   if (icl.urgency_tier === "Actively applying") {
-    if (card.template === "B" || card.id === "employer-ping") score += 10;
+    if (card.template === "B" || card.id === "recruiter-radar") score += 10;
   }
-  if (icl.target_role && card.id === "quick-stitch-rtj") score += 6;
-  if (icl.work_pref && card.id === "employer-ping") score += 4;
-  if (portal === "rna" && entryModifier === "uploader" && card.id === "phoenix-ats") {
-    score += 15;
+  if (icl.target_role && card.id === "resume-tailoring") score += 6;
+  if (icl.work_pref && card.id === "recruiter-radar") score += 4;
+  if (portal === "rna" && entryModifier === "uploader" && card.id === "resume-tailoring") {
+    score += 12;
   }
   if (portal === "boldpro" && card.id === "vanity-claim") score += 12;
+  if (
+    (lifecycle === "long_term_8_plus" || lifecycle === "post_cancellation") &&
+    card.id === "salary-pulse"
+  ) {
+    score += 8;
+  }
 
   return score;
 }
@@ -65,6 +71,10 @@ export function getCtr(stats: CardCtrStats[], cardId: string): CardCtrStats {
       cardId,
       impressions: 0,
       clicks: 0,
+      variantAImpressions: 0,
+      variantAClicks: 0,
+      variantBImpressions: 0,
+      variantBClicks: 0,
     }
   );
 }
@@ -82,4 +92,21 @@ export function averageCtr(stats: CardCtrStats[]): number {
 export function ctrRate(stat: CardCtrStats): number {
   if (stat.impressions === 0) return 0;
   return stat.clicks / stat.impressions;
+}
+
+/** Relative CTR of variant vs the stronger sibling; highlight when < 30% of peer. */
+export function isLowPerformingVariant(
+  stat: CardCtrStats,
+  variant: "A" | "B",
+): boolean {
+  const aImp = stat.variantAImpressions ?? Math.max(1, Math.floor(stat.impressions * 0.5));
+  const bImp = stat.variantBImpressions ?? Math.max(1, Math.ceil(stat.impressions * 0.5));
+  const aClk = stat.variantAClicks ?? Math.floor(stat.clicks * 0.55);
+  const bClk = stat.variantBClicks ?? Math.ceil(stat.clicks * 0.45);
+  const aRate = aClk / Math.max(aImp, 1);
+  const bRate = bClk / Math.max(bImp, 1);
+  const peer = variant === "A" ? bRate : aRate;
+  const self = variant === "A" ? aRate : bRate;
+  if (peer <= 0) return false;
+  return self < peer * 0.3;
 }
