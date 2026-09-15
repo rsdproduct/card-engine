@@ -114,6 +114,30 @@ function waitForScrollSettle(ms: number, reduceMotion: boolean): Promise<void> {
   });
 }
 
+function pinnedCardBox(cardH: number, cardW: number) {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const width = Math.min(cardW, 380, vw - EDGE_MARGIN * 2);
+  const maxCardH = Math.min(cardH, vh * 0.85, vh - 60);
+  const left = Math.max(
+    EDGE_MARGIN,
+    Math.min((vw - width) / 2, vw - width - EDGE_MARGIN),
+  );
+  const top = Math.max(EDGE_MARGIN, vh - maxCardH - EDGE_MARGIN);
+  return { top, left, width, maxCardH };
+}
+
+function pinnedFallbackPlacement(cardH: number, cardW: number): TooltipPlacement {
+  const box = pinnedCardBox(cardH, cardW);
+  return {
+    top: box.top,
+    left: box.left,
+    width: box.width,
+    pinned: true,
+    placement: "pinned",
+  };
+}
+
 function computeTooltipPlacement(
   rect: SpotlightRect,
   cardH: number,
@@ -128,21 +152,16 @@ function computeTooltipPlacement(
 
   // Compact laptop / short viewport: pin card so controls never clip
   if (vh < COMPACT_VIEWPORT_H) {
-    const pinnedW = Math.min(width, 380);
-    const left = Math.max(
-      EDGE_MARGIN,
-      Math.min((vw - pinnedW) / 2, vw - pinnedW - EDGE_MARGIN),
-    );
-    const top = Math.max(EDGE_MARGIN, vh - maxCardH - EDGE_MARGIN);
+    const box = pinnedCardBox(cardH, cardW);
     return {
-      top,
-      left,
-      width: pinnedW,
+      top: box.top,
+      left: box.left,
+      width: box.width,
       pinned: true,
       placement: "pinned",
       beam: {
-        x1: left + pinnedW / 2,
-        y1: top,
+        x1: box.left + box.width / 2,
+        y1: box.top,
         x2: targetCenterX,
         y2: targetCenterY,
       },
@@ -181,6 +200,22 @@ function computeTooltipPlacement(
     pinned: false,
     placement,
   };
+}
+
+async function waitForTarget(
+  testId: string,
+  attempts = 12,
+  delayMs = 80,
+): Promise<Element | null> {
+  for (let i = 0; i < attempts; i++) {
+    const el = document.querySelector(`[data-testid="${testId}"]`);
+    if (el) {
+      const r = el.getBoundingClientRect();
+      if (r.width >= 2 && r.height >= 2) return el;
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+  }
+  return document.querySelector(`[data-testid="${testId}"]`);
 }
 
 export function WtfExplainerTrigger({
@@ -287,7 +322,18 @@ export function WtfExplainerOverlay({
     }
 
     const gen = ++measureGen.current;
-    const el = document.querySelector(`[data-testid="${step.targetTestId}"]`);
+    const estimateH =
+      cardRef.current?.getBoundingClientRect().height || DEFAULT_CARD_H;
+    const estimateW =
+      cardRef.current?.getBoundingClientRect().width ||
+      Math.min(DEFAULT_CARD_W, window.innerWidth - 32);
+
+    // Keep a safe pinned card visible while the target mounts (mode switches).
+    setPlacement(pinnedFallbackPlacement(estimateH, estimateW));
+
+    const el = await waitForTarget(step.targetTestId);
+    if (gen !== measureGen.current) return;
+
     if (el) {
       el.scrollIntoView({
         behavior: reduceMotion ? "auto" : "smooth",
@@ -295,24 +341,16 @@ export function WtfExplainerOverlay({
         inline: "nearest",
       });
       await waitForScrollSettle(SCROLL_SETTLE_MS, !!reduceMotion);
-    } else {
-      await new Promise((r) => window.setTimeout(r, PREPARE_DELAY_MS));
     }
     if (gen !== measureGen.current) return;
 
     const target = measureTarget(step.targetTestId);
     setRect(target);
     if (!target) {
-      setPlacement(null);
+      setPlacement(pinnedFallbackPlacement(estimateH, estimateW));
       return;
     }
 
-    // First pass with estimated size, then refine after paint with real card height
-    const estimateH =
-      cardRef.current?.getBoundingClientRect().height || DEFAULT_CARD_H;
-    const estimateW =
-      cardRef.current?.getBoundingClientRect().width ||
-      Math.min(DEFAULT_CARD_W, window.innerWidth - 32);
     const first = computeTooltipPlacement(target, estimateH, estimateW);
     setPlacement(first);
 
@@ -716,21 +754,30 @@ function DesktopCard({
   onJump: (i: number) => void;
   reduceMotion: boolean;
 }) {
-  const style =
-    tab === "guide" && placement
-      ? {
-          position: "fixed" as const,
-          top: placement.top,
-          left: placement.left,
-          width: placement.width,
-        }
-      : {
-          position: "fixed" as const,
-          top: "50%",
-          left: "50%",
-          width: Math.min(420, typeof window !== "undefined" ? window.innerWidth - 32 : 400),
-          transform: "translate(-50%, -50%)",
-        };
+  const style = (() => {
+    if (tab === "guide" && placement) {
+      return {
+        position: "fixed" as const,
+        top: placement.top,
+        left: placement.left,
+        width: placement.width,
+      };
+    }
+    // Glossary / missing placement: centered without CSS transform
+    // (framer-motion owns transform).
+    const vw = typeof window !== "undefined" ? window.innerWidth : 1280;
+    const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+    const width = Math.min(420, vw - 32);
+    const height =
+      cardRef.current?.getBoundingClientRect().height || DEFAULT_CARD_H;
+    const maxH = Math.min(height, vh * 0.85, vh - 60);
+    return {
+      position: "fixed" as const,
+      top: Math.max(EDGE_MARGIN, (vh - maxH) / 2),
+      left: Math.max(EDGE_MARGIN, (vw - width) / 2),
+      width,
+    };
+  })();
 
   return (
     <motion.div
