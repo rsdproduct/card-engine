@@ -18,7 +18,7 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "BOLD Daily Feed Card Engine",
   description:
-    "Multi-tenant daily feed prototype for MyPerfectResume, ResumeNow, Bold.pro, and Monster.",
+    "Multi-tenant daily feed prototype for MyPerfectResume, ResumeNow, Zeti, Bold.pro, and Monster.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

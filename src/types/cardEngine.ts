@@ -1,4 +1,10 @@
-export type PortalId = "mpr" | "rna" | "boldpro" | "monster";
+export type PortalId = "mpr" | "rna" | "zeti" | "monster" | "boldpro";
+
+/** Category presets for multi-portal targeting */
+export type PortalPreset = "ALL" | "CAREER_DOCS" | "JOB_PORTALS" | "BOLD_PRO";
+
+/** A card may target concrete portals and/or category presets */
+export type PortalScopeItem = PortalId | PortalPreset;
 
 export type LifecycleState =
   | "pre_conversion"
@@ -99,7 +105,10 @@ export type CardContent =
   | CardTemplateDContent;
 
 export interface AudienceTargeting {
-  portals: Array<PortalId | "all">;
+  /** Multi-select portals and/or category presets (ALL, CAREER_DOCS, …) */
+  portalScope: PortalScopeItem[];
+  /** @deprecated Prefer portalScope; kept for LocalStorage migration */
+  portals?: Array<PortalId | "all">;
   lifecycles: LifecycleState[];
   searchIntents: SearchIntent[];
   experienceTiers: ExperienceTier[];
@@ -124,6 +133,8 @@ export interface FeedCard {
   entryBoost?: Partial<Record<EntryModifier, number>>;
   lifecycleBoost?: Partial<Record<LifecycleState, number>>;
   targeting?: AudienceTargeting;
+  /** Direct portal/preset targeting; falls back to targeting.portalScope */
+  portalScope?: PortalScopeItem[];
   content: CardContent;
   pruned?: boolean;
   custom?: boolean;

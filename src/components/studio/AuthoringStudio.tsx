@@ -5,6 +5,16 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useFeedEngine } from "@/context/FeedEngineContext";
 import { HEADER_IMAGE_PRESETS, GRADIENT_FALLBACK } from "@/data/imagePresets";
 import { lifecycleLabels, portalThemes } from "@/data/portalThemes";
+import {
+  ALL_PORTAL_IDS,
+  expandPortalScope,
+  formatPortalScopeSummary,
+  isPortalId,
+  isPortalPreset,
+  normalizePortalScope,
+  PRESET_LABELS,
+  PRESET_PORTALS,
+} from "@/lib/portalScope";
 import type {
   AudienceTargeting,
   CardTemplate,
@@ -12,6 +22,8 @@ import type {
   IclAttributeKey,
   LifecycleState,
   PortalId,
+  PortalPreset,
+  PortalScopeItem,
   SearchIntent,
 } from "@/types/cardEngine";
 import { cn } from "@/lib/utils";
@@ -38,7 +50,13 @@ const templateMeta: Record<
   },
 };
 
-const allPortals: PortalId[] = ["mpr", "rna", "boldpro", "monster"];
+const QUICK_PRESETS: PortalPreset[] = [
+  "ALL",
+  "CAREER_DOCS",
+  "JOB_PORTALS",
+  "BOLD_PRO",
+];
+
 const allLifecycles = Object.keys(lifecycleLabels) as LifecycleState[];
 const searchIntents: Array<{ id: SearchIntent; label: string }> = [
   { id: "actively_applying", label: "Actively Applying" },
@@ -52,7 +70,7 @@ const experienceTiers: Array<{ id: ExperienceTier; label: string }> = [
 ];
 
 const defaultTargeting: AudienceTargeting = {
-  portals: ["all"],
+  portalScope: ["ALL"],
   lifecycles: ["early_1_7"],
   searchIntents: ["actively_applying"],
   experienceTiers: ["mid"],
@@ -139,24 +157,52 @@ export function AuthoringStudio() {
   const [publishing, setPublishing] = useState(false);
 
   const imageForPreview = customUrl.trim() || headerImage;
+  const portalScope = normalizePortalScope(targeting.portalScope);
 
-  const allPortalsSelected = targeting.portals.includes("all");
+  function setPortalScope(next: PortalScopeItem[]) {
+    const normalized = normalizePortalScope(next);
+    setTargeting((prev) => ({ ...prev, portalScope: normalized }));
+  }
 
-  function togglePortal(id: PortalId | "all") {
-    setTargeting((prev) => {
-      if (id === "all") {
-        return { ...prev, portals: ["all"] };
-      }
-      const withoutAll = prev.portals.filter((p) => p !== "all") as PortalId[];
-      const has = withoutAll.includes(id);
-      const next = has
-        ? withoutAll.filter((p) => p !== id)
-        : [...withoutAll, id];
-      return {
-        ...prev,
-        portals: next.length === 0 ? ["all"] : next,
-      };
-    });
+  function applyPreset(preset: PortalPreset) {
+    setPortalScope([preset]);
+  }
+
+  function togglePortalChip(id: PortalId) {
+    // Expand presets/ALL into concrete IDs before toggling a single portal
+    let granular: PortalId[];
+    if (portalScope.includes("ALL")) {
+      granular = [...ALL_PORTAL_IDS];
+    } else if (portalScope.some(isPortalPreset)) {
+      granular = [...expandPortalScope(portalScope)];
+    } else {
+      granular = portalScope.filter(isPortalId);
+    }
+    const has = granular.includes(id);
+    const next = has ? granular.filter((p) => p !== id) : [...granular, id];
+    setPortalScope(next.length === 0 ? ["ALL"] : next);
+  }
+
+  function isPresetActive(preset: PortalPreset): boolean {
+    if (portalScope.length === 1 && portalScope[0] === preset) return true;
+    if (preset === "ALL" && portalScope.includes("ALL")) return true;
+    // Treat exact matching set of portals as that preset (without ALL)
+    if (preset !== "ALL" && portalScope.every((x) => !isPortalPreset(x))) {
+      const expected = PRESET_PORTALS[preset];
+      return (
+        expected.length === portalScope.length &&
+        expected.every((id) => portalScope.includes(id))
+      );
+    }
+    return false;
+  }
+
+  function isPortalChipActive(id: PortalId): boolean {
+    if (portalScope.includes("ALL")) return true;
+    if (portalScope.includes(id)) return true;
+    return portalScope.some(
+      (item) => isPortalPreset(item) && PRESET_PORTALS[item].includes(id),
+    );
   }
 
   function toggleLifecycle(id: LifecycleState) {
@@ -218,7 +264,7 @@ export function AuthoringStudio() {
         bodyCopy: bodyCopy.trim(),
         headerImage: imageForPreview,
         template,
-        targeting,
+        targeting: { ...targeting, portalScope },
         options:
           template === "A"
             ? optionsText
@@ -257,14 +303,14 @@ export function AuthoringStudio() {
   const fieldClass =
     "w-full rounded-xl border border-[#D5DEE6] bg-white px-3 py-2.5 text-sm text-[#0F2537] outline-none focus:border-[#00A88F]";
 
+  const portalSummary = useMemo(
+    () => formatPortalScopeSummary(portalScope),
+    [portalScope],
+  );
+
   const targetingSummary = useMemo(() => {
-    const portals = allPortalsSelected
-      ? "All portals"
-      : (targeting.portals as PortalId[])
-          .map((p) => portalThemes[p].shortName)
-          .join(", ");
-    return `${portals} · ${targeting.lifecycles.length} lifecycle · ${targeting.searchIntents.length} intent · ${targeting.experienceTiers.length} tier`;
-  }, [allPortalsSelected, targeting]);
+    return `${portalSummary} · ${targeting.lifecycles.length} lifecycle · ${targeting.searchIntents.length} intent · ${targeting.experienceTiers.length} tier`;
+  }, [portalSummary, targeting]);
 
   return (
     <div
@@ -483,30 +529,53 @@ export function AuthoringStudio() {
               ) : null}
             </AnimatePresence>
 
-            <div>
+            <div data-testid="portal-targeting">
               <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-[#5A6B7A]">
                 3 · Portal & audience targeting
               </h2>
               <p className="mb-2 text-xs text-[#5A6B7A]">{targetingSummary}</p>
 
-              <p className="mb-1.5 text-xs font-semibold text-[#0F2537]">Portals</p>
-              <div className="mb-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className={chip(allPortalsSelected)}
-                  onClick={() => togglePortal("all")}
-                >
-                  All
-                </button>
-                {allPortals.map((p) => (
+              <div
+                data-testid="portal-scope-summary"
+                className="mb-3 inline-flex max-w-full items-center rounded-full border border-[#00A88F]/35 bg-[#EAF7F4] px-3 py-1.5 text-[11px] font-semibold text-[#0F2537]"
+              >
+                {portalSummary}
+              </div>
+
+              <p className="mb-1.5 text-xs font-semibold text-[#0F2537]">
+                Quick-select presets
+              </p>
+              <div
+                data-testid="portal-presets"
+                className="mb-3 flex flex-wrap gap-2"
+              >
+                {QUICK_PRESETS.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    data-testid={`portal-preset-${preset}`}
+                    className={chip(isPresetActive(preset))}
+                    onClick={() => applyPreset(preset)}
+                  >
+                    {PRESET_LABELS[preset]}
+                  </button>
+                ))}
+              </div>
+
+              <p className="mb-1.5 text-xs font-semibold text-[#0F2537]">
+                Granular portals
+              </p>
+              <div
+                data-testid="portal-chips"
+                className="mb-3 flex flex-wrap gap-2"
+              >
+                {ALL_PORTAL_IDS.map((p) => (
                   <button
                     key={p}
                     type="button"
-                    className={chip(
-                      !allPortalsSelected &&
-                        (targeting.portals as PortalId[]).includes(p),
-                    )}
-                    onClick={() => togglePortal(p)}
+                    data-testid={`portal-chip-${p}`}
+                    className={chip(isPortalChipActive(p))}
+                    onClick={() => togglePortalChip(p)}
                   >
                     {portalThemes[p].shortName}
                   </button>
@@ -567,7 +636,7 @@ export function AuthoringStudio() {
             <button
               type="submit"
               disabled={publishing}
-              className="w-full rounded-xl bg-[#0F2537] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[#163449] disabled:opacity-60"
+              className="w-full rounded-xl bg-[#0F2537] px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-[#0F2537]/90 disabled:opacity-60"
             >
               {publishing
                 ? "Publishing…"

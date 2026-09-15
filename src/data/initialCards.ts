@@ -66,11 +66,12 @@ export const initialCards: FeedCard[] = [
     lifecycleBoost: { long_term_8_plus: 12, post_cancellation: 10 },
     entryBoost: { scratch_builder: 4 },
     targeting: {
-      portals: ["all"],
+      portalScope: ["ALL"],
       lifecycles: ["long_term_8_plus", "post_cancellation"],
       searchIntents: ["employed_career_growth", "passively_exploring"],
       experienceTiers: ["senior"],
     },
+    portalScope: ["ALL"],
     content: {
       options: [
         { id: "about-right", label: "About right", value: "$142K–$178K" },
@@ -107,7 +108,7 @@ export const initialCards: FeedCard[] = [
   {
     id: "urgency-calibrator",
     template: "A",
-    campaignName: "Urgency Calibrator",
+    campaignName: "Urgency & Role Profiling",
     headline: "Where’s your head at with your job search?",
     headlineVariantB: "How hot is your search right now?",
     activeVariant: "A",
@@ -117,6 +118,13 @@ export const initialCards: FeedCard[] = [
     brandTag: "Intent",
     timestampLabel: "Just now",
     priority: 88,
+    portalScope: ["ALL"],
+    targeting: {
+      portalScope: ["ALL"],
+      lifecycles: ["early_1_7", "post_cancellation"],
+      searchIntents: ["actively_applying", "passively_exploring"],
+      experienceTiers: ["mid", "senior"],
+    },
     lifecycleBoost: { post_cancellation: 15, early_1_7: 6 },
     content: {
       steps: [
@@ -146,7 +154,7 @@ export const initialCards: FeedCard[] = [
   {
     id: "resume-tailoring",
     template: "B",
-    campaignName: "Resume Tailoring & Completeness",
+    campaignName: "RTJ Resume Tailoring & Cover Letter",
     headline: "92% Match: Senior PM at TechCorp",
     headlineVariantB: "3 ATS keywords missing from your RTJ tailor",
     activeVariant: "A",
@@ -156,7 +164,14 @@ export const initialCards: FeedCard[] = [
     brandTag: "RTJ Tailor",
     timestampLabel: "1h ago",
     priority: 86,
-    portalBoost: { monster: 10, rna: 6, mpr: 8 },
+    portalScope: ["CAREER_DOCS", "monster"],
+    targeting: {
+      portalScope: ["CAREER_DOCS", "monster"],
+      lifecycles: ["early_1_7", "long_term_8_plus"],
+      searchIntents: ["actively_applying"],
+      experienceTiers: ["mid", "senior"],
+    },
+    portalBoost: { monster: 10, rna: 6, mpr: 8, zeti: 6 },
     content: {
       matchScore: 92,
       matchLabel: "Senior PM at TechCorp",
@@ -174,7 +189,7 @@ export const initialCards: FeedCard[] = [
   {
     id: "recruiter-radar",
     template: "C",
-    campaignName: "Recruiter Radar",
+    campaignName: "Monster Recruiter Pulse / Employer Ping",
     headline: "A Fintech employer in Chicago searched for candidates with your background",
     headlineVariantB: "42 recruiters viewed profiles like yours this week",
     activeVariant: "A",
@@ -184,7 +199,14 @@ export const initialCards: FeedCard[] = [
     brandTag: "MCB Marketplace",
     timestampLabel: "3h ago",
     priority: 80,
-    portalBoost: { monster: 12, rna: 4 },
+    portalScope: ["JOB_PORTALS", "CAREER_DOCS"],
+    targeting: {
+      portalScope: ["JOB_PORTALS", "CAREER_DOCS"],
+      lifecycles: ["early_1_7", "long_term_8_plus"],
+      searchIntents: ["actively_applying", "passively_exploring"],
+      experienceTiers: ["mid", "senior"],
+    },
+    portalBoost: { monster: 12, rna: 4, mpr: 3, zeti: 3 },
     lifecycleBoost: { early_1_7: 8, long_term_8_plus: 6 },
     content: {
       statLabel: "recruiters searched your profile this week",
@@ -197,7 +219,7 @@ export const initialCards: FeedCard[] = [
   {
     id: "vanity-claim",
     template: "C",
-    campaignName: "Bold.pro Profile Claim",
+    campaignName: "Bold.pro Vanity URL Claim",
     headline: "Claim your public web profile",
     headlineVariantB: "Lock bold.pro/ryan-darling before it’s gone",
     activeVariant: "A",
@@ -207,6 +229,13 @@ export const initialCards: FeedCard[] = [
     brandTag: "Bold.pro",
     timestampLabel: "Today",
     priority: 68,
+    portalScope: ["ALL"],
+    targeting: {
+      portalScope: ["ALL"],
+      lifecycles: ["early_1_7", "long_term_8_plus"],
+      searchIntents: ["actively_applying", "employed_career_growth"],
+      experienceTiers: ["mid", "senior"],
+    },
     portalBoost: { boldpro: 30 },
     content: {
       statLabel: "profile views waiting on a public URL",
