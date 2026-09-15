@@ -5,13 +5,20 @@ import { UserRound, Wrench } from "lucide-react";
 import { useFeedEngine } from "@/context/FeedEngineContext";
 import type { AppMode } from "@/types/cardEngine";
 import { cn } from "@/lib/utils";
+import { WtfExplainerTrigger } from "@/components/explainer/WtfExplainer";
 
 const modes: Array<{ id: AppMode; label: string; icon: typeof UserRound }> = [
   { id: "candidate", label: "Candidate Feed View", icon: UserRound },
   { id: "studio", label: "PM Authoring Studio", icon: Wrench },
 ];
 
-export function ModeSwitcher() {
+export function ModeSwitcher({
+  hasSeenExplainer,
+  onOpenExplainer,
+}: {
+  hasSeenExplainer: boolean;
+  onOpenExplainer: () => void;
+}) {
   const { mode, setMode, persistenceLabel } = useFeedEngine();
 
   return (
@@ -20,13 +27,19 @@ export function ModeSwitcher() {
       className="border-b border-[#D5DEE6] bg-[#0F2537] text-white"
     >
       <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#5EEAD4]">
-            BOLD · Daily Feed Card Engine V2
-          </p>
-          <p className="mt-0.5 text-sm text-white/70">
-            Dual-view prototype · {persistenceLabel}
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#5EEAD4]">
+              BOLD · Daily Feed Card Engine V2
+            </p>
+            <p className="mt-0.5 text-sm text-white/70">
+              Dual-view prototype · {persistenceLabel}
+            </p>
+          </div>
+          <WtfExplainerTrigger
+            hasSeen={hasSeenExplainer}
+            onOpen={onOpenExplainer}
+          />
         </div>
 
         <div className="relative flex w-full max-w-xl rounded-xl bg-white/10 p-1 backdrop-blur-sm sm:w-auto">

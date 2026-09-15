@@ -16,7 +16,7 @@ export function IclBadgeDisplay() {
   const entries = Object.entries(icl) as Array<[keyof typeof icl, string | null]>;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div data-testid="icl-badges" className="flex flex-wrap items-center gap-2">
       <span
         className="text-[10px] font-semibold uppercase tracking-[0.16em]"
         style={{ color: theme.muted }}

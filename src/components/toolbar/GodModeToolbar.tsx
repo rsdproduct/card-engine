@@ -26,6 +26,7 @@ export function GodModeToolbar() {
 
   return (
     <div
+      data-testid="god-mode-toolbar"
       className="sticky top-0 z-40 border-b backdrop-blur-md"
       style={{
         background: theme.dark ? "rgba(13,15,23,0.92)" : "rgba(255,255,255,0.92)",

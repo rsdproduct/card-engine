@@ -27,3 +27,17 @@ h3 {
 * {
   box-sizing: border-box;
 }
+
+@keyframes wtf-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(94, 234, 212, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(94, 234, 212, 0);
+  }
+}
+
+.wtf-pulse-invite {
+  animation: wtf-pulse 2.4s ease-in-out infinite;
+}

@@ -14,6 +14,7 @@ Repo: [rsdproduct/card-engine](https://github.com/rsdproduct/card-engine)
 - **Persistence:** LocalStorage + `/api/campaigns` fallback; optional Supabase when `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set
 - **Telemetry:** `campaign_published`, `card_impression`, `multi_step_answer_logged`, `icl_attribute_updated`, plus pruning with **Pause Low-Performing Variant**
 - God Mode portal/lifecycle/entry controls, ICL badges, Framer Motion transitions
+- **"WTF is all of this?" guided explainer:** desktop spotlight tour + mobile bottom sheet (6 steps), glossary tab, keyboard nav (Esc / ← →)
 
 ## Run locally
 
