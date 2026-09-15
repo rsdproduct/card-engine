@@ -39,6 +39,8 @@ export function UniformCard({ card }: { card: FeedCard }) {
       transition={{ type: "spring", stiffness: 380, damping: 28 }}
       className={cn(
         "overflow-hidden rounded-2xl border shadow-sm",
+        theme.id === "boldpro" &&
+          "shadow-[0_1px_2px_rgba(10,15,44,0.04),0_8px_24px_rgba(10,15,44,0.06)]",
         theme.glow &&
           "shadow-[0_0_0_1px_rgba(99,102,241,0.25),0_12px_40px_rgba(99,102,241,0.12)]",
       )}
