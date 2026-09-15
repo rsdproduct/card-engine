@@ -1,17 +1,19 @@
-# BOLD Daily Feed Card Engine
+# BOLD Daily Feed Card Engine V2
 
 Interactive multi-tenant **Daily Feed** prototype for BOLD career portals (MyPerfectResume, ResumeNow, Bold.pro, Monster).
 
-GitHub target: [rsdproduct/card-engine](https://github.com/rsdproduct/card-engine) (app at repo root).
+Repo: [rsdproduct/card-engine](https://github.com/rsdproduct/card-engine)
 
-## What's included
+## What's included (V2)
 
-- Dual-pane experience: live consumer portal feed + God Mode engine controller
-- Four card templates (Micro-Action, Quick-Stitch, Recruiter Ping, Digest)
-- 10 domain-rich seed cards with portal / lifecycle / entry ranking boosts
-- ICL live attribute badges, authoring drawer, telemetry + pruning inspector
-- Client-side persistence via LocalStorage
-- Framer Motion feed reorder / inject / prune animations
+- **Dual-view switcher:** Candidate Feed View ↔ PM Authoring Studio
+- **PM Authoring Studio:** campaign metadata, A/B headlines, template picker (A–D), portal/audience targeting, live side-by-side preview, publish to engine
+- **Uniform card container:** brand header, 160px media, body, type-specific interactive area, full-width CTA
+- **Type A multi-step:** Q1 → inline Q2 micro-profiling (Urgency Calibrator)
+- **Seed aligned to business reality:** Resume Tailoring & Completeness, Recruiter Radar (MCB), Salary Pulse, Urgency Calibrator, Weekly Footprint Digest (Phoenix ATS Diagnostic removed)
+- **Persistence:** LocalStorage + `/api/campaigns` fallback; optional Supabase when `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set
+- **Telemetry:** `campaign_published`, `card_impression`, `multi_step_answer_logged`, `icl_attribute_updated`, plus pruning with **Pause Low-Performing Variant**
+- God Mode portal/lifecycle/entry controls, ICL badges, Framer Motion transitions
 
 ## Run locally
 
@@ -22,10 +24,20 @@ npm run dev -- --port 43127
 
 Open [http://127.0.0.1:43127](http://127.0.0.1:43127).
 
+### Optional Supabase
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+Without these, the app runs fully on LocalStorage + the in-memory API route.
+
 ## Stack
 
 - Next.js App Router · TypeScript · Tailwind CSS
 - Framer Motion · Lucide React · clsx · tailwind-merge
+- Optional: `@supabase/supabase-js`
 
 ## Scripts
 
@@ -35,5 +47,3 @@ Open [http://127.0.0.1:43127](http://127.0.0.1:43127).
 | `npm run build` | Production build |
 | `npm run start` | Serve production build |
 | `npm run lint` | ESLint |
-
-No auth or database — fully client-side for zero-config Vercel demos.

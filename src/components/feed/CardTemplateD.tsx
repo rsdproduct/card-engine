@@ -1,6 +1,5 @@
 "use client";
 
-import { ArrowUpRight } from "lucide-react";
 import { useFeedEngine } from "@/context/FeedEngineContext";
 import type { CardTemplateDContent, FeedCard } from "@/types/cardEngine";
 
@@ -9,12 +8,12 @@ export function CardTemplateD({ card }: { card: FeedCard }) {
   const content = card.content as CardTemplateDContent;
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-2">
         {content.metrics.map((metric) => (
           <div
             key={metric.label}
-            className="rounded-xl border px-3 py-3 text-center"
+            className="rounded-xl border px-2 py-3 text-center"
             style={{ borderColor: theme.border }}
           >
             <p className="text-xl font-semibold tracking-tight">{metric.value}</p>
@@ -26,7 +25,10 @@ export function CardTemplateD({ card }: { card: FeedCard }) {
       </div>
 
       <div>
-        <div className="mb-1.5 flex items-center justify-between text-xs" style={{ color: theme.muted }}>
+        <div
+          className="mb-1.5 flex items-center justify-between text-xs"
+          style={{ color: theme.muted }}
+        >
           <span>{content.progressLabel}</span>
           <span>{content.progressValue}%</span>
         </div>
@@ -50,11 +52,15 @@ export function CardTemplateD({ card }: { card: FeedCard }) {
       <button
         type="button"
         onClick={() => boostVisibility(card.id)}
-        className="inline-flex items-center gap-1 text-sm font-semibold"
-        style={{ color: theme.accent }}
+        className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+        style={{
+          background:
+            theme.id === "boldpro"
+              ? `linear-gradient(135deg, ${theme.accent}, ${theme.accentSecondary})`
+              : theme.accent,
+        }}
       >
         {content.ctaLabel}
-        <ArrowUpRight className="size-4" />
       </button>
     </div>
   );

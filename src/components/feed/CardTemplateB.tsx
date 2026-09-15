@@ -9,11 +9,11 @@ export function CardTemplateB({ card }: { card: FeedCard }) {
   const content = card.content as CardTemplateBContent;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         {typeof content.matchScore === "number" ? (
           <span
-            className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+            className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold"
             style={{
               background: theme.dark ? "rgba(99,102,241,0.2)" : `${theme.accent}18`,
               color: theme.accentSecondary || theme.accent,
@@ -24,15 +24,15 @@ export function CardTemplateB({ card }: { card: FeedCard }) {
             {content.matchLabel ? `: ${content.matchLabel}` : ""}
           </span>
         ) : null}
-        {typeof content.healthScore === "number" ? (
+        {typeof content.completenessScore === "number" ? (
           <span
-            className="inline-flex rounded-full px-3 py-1 text-xs font-semibold"
+            className="inline-flex rounded-md px-2.5 py-1 text-xs font-semibold"
             style={{
               background: `${theme.accent}18`,
               color: theme.accent,
             }}
           >
-            ATS Health {content.healthScore}%
+            Completeness {content.completenessScore}%
           </span>
         ) : null}
       </div>
@@ -51,18 +51,10 @@ export function CardTemplateB({ card }: { card: FeedCard }) {
         </div>
       ) : null}
 
-      {content.blockers?.length ? (
-        <ul className="space-y-1 text-sm" style={{ color: theme.muted }}>
-          {content.blockers.map((b) => (
-            <li key={b}>• {b}</li>
-          ))}
-        </ul>
-      ) : null}
-
       <button
         type="button"
         onClick={() => openQuickStitch(card.id)}
-        className="inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+        className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
         style={{
           background:
             theme.id === "boldpro"

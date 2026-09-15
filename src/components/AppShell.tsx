@@ -3,14 +3,15 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
 import { useFeedEngine } from "@/context/FeedEngineContext";
+import { ModeSwitcher } from "@/components/ModeSwitcher";
 import { FeedContainer } from "@/components/feed/FeedContainer";
 import { QuickStitchModal } from "@/components/modals/QuickStitchModal";
-import { CardAuthoringDrawer } from "@/components/studio/CardAuthoringDrawer";
+import { AuthoringStudio } from "@/components/studio/AuthoringStudio";
 import { GodModeToolbar } from "@/components/toolbar/GodModeToolbar";
 import { TelemetryDrawer } from "@/components/telemetry/TelemetryDrawer";
 
 export function AppShell() {
-  const { theme, toast, clearToast } = useFeedEngine();
+  const { theme, toast, clearToast, mode } = useFeedEngine();
 
   useEffect(() => {
     if (!toast) return;
@@ -19,38 +20,60 @@ export function AppShell() {
   }, [toast, clearToast]);
 
   return (
-    <div
-      className="relative min-h-screen pb-28 transition-colors"
-      style={{
-        background:
-          theme.id === "boldpro"
-            ? `radial-gradient(1200px 600px at 10% -10%, rgba(99,102,241,0.22), transparent 55%), radial-gradient(900px 500px at 90% 0%, rgba(168,85,247,0.16), transparent 50%), ${theme.background}`
-            : theme.id === "monster"
-              ? `linear-gradient(180deg, #FFFFFF 0%, #F7F5FF 45%, #FFFFFF 100%)`
-              : theme.id === "rna"
-                ? `linear-gradient(180deg, #F8FAFC 0%, #EEF4FF 40%, #FFF7F4 100%)`
-                : `linear-gradient(180deg, #F4F7F9 0%, #EAF3F1 50%, #F4F7F9 100%)`,
-        color: theme.text,
-      }}
-    >
-      <GodModeToolbar />
+    <div className="relative min-h-screen">
+      <ModeSwitcher />
 
-      <main className="mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[1fr_280px]">
-        <section>
-          <PortalHeader />
-          <div className="mt-5">
-            <FeedContainer />
-          </div>
-        </section>
+      <AnimatePresence mode="wait">
+        {mode === "studio" ? (
+          <motion.div
+            key="studio"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.28 }}
+          >
+            <AuthoringStudio />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="candidate"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.28 }}
+            className="pb-28 transition-colors"
+            style={{
+              background:
+                theme.id === "boldpro"
+                  ? `radial-gradient(1200px 600px at 10% -10%, rgba(99,102,241,0.22), transparent 55%), radial-gradient(900px 500px at 90% 0%, rgba(168,85,247,0.16), transparent 50%), ${theme.background}`
+                  : theme.id === "monster"
+                    ? `linear-gradient(180deg, #FFFFFF 0%, #F7F5FF 45%, #FFFFFF 100%)`
+                    : theme.id === "rna"
+                      ? `linear-gradient(180deg, #F8FAFC 0%, #EEF4FF 40%, #FFF7F4 100%)`
+                      : `linear-gradient(180deg, #F4F7F9 0%, #EAF3F1 50%, #F4F7F9 100%)`,
+              color: theme.text,
+            }}
+          >
+            <GodModeToolbar />
 
-        <aside className="hidden lg:block">
-          <EngineBrief />
-        </aside>
-      </main>
+            <main className="mx-auto grid max-w-6xl gap-6 px-4 py-6 lg:grid-cols-[1fr_280px]">
+              <section>
+                <PortalHeader />
+                <div className="mt-5">
+                  <FeedContainer />
+                </div>
+              </section>
 
-      <QuickStitchModal />
-      <CardAuthoringDrawer />
-      <TelemetryDrawer />
+              <aside className="hidden lg:block">
+                <EngineBrief />
+              </aside>
+            </main>
+
+            <QuickStitchModal />
+            <TelemetryDrawer />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {toast ? (
@@ -89,7 +112,7 @@ function PortalHeader() {
             className="text-[11px] font-semibold uppercase tracking-[0.18em]"
             style={{ color: theme.muted }}
           >
-            Daily Feed · Consumer Portal
+            Candidate Feed · Uniform Cards
           </p>
           <h1
             className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl"
@@ -123,15 +146,16 @@ function PortalHeader() {
         </span>
       </div>
       <p className="mt-3 max-w-2xl text-sm leading-relaxed" style={{ color: theme.muted }}>
-        Habit-forming career management for {theme.name}. Cards re-rank live from portal,
-        lifecycle, entry path, and ICL signals.
+        Habit-forming career management for {theme.name}. Cards share one LinkedIn-style
+        container and re-rank from portal, lifecycle, entry path, and ICL signals.
       </p>
     </header>
   );
 }
 
 function EngineBrief() {
-  const { theme, rankedCards, portal, lifecycle, entryModifier } = useFeedEngine();
+  const { theme, rankedCards, portal, lifecycle, entryModifier, setMode } =
+    useFeedEngine();
   return (
     <div
       className="sticky top-36 rounded-2xl border p-4"
@@ -161,7 +185,15 @@ function EngineBrief() {
           </li>
         ))}
       </ol>
-      <p className="mt-4 text-[11px]" style={{ color: theme.muted }}>
+      <button
+        type="button"
+        onClick={() => setMode("studio")}
+        className="mt-4 w-full rounded-xl border px-3 py-2 text-xs font-semibold"
+        style={{ borderColor: theme.border, color: theme.text }}
+      >
+        Open PM Authoring Studio
+      </button>
+      <p className="mt-3 text-[11px]" style={{ color: theme.muted }}>
         Portal id: {portal}
       </p>
     </div>

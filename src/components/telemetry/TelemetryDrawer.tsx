@@ -1,9 +1,9 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, Scissors } from "lucide-react";
+import { ChevronDown, Pause, Scissors } from "lucide-react";
 import { useFeedEngine } from "@/context/FeedEngineContext";
-import { ctrRate, getCtr } from "@/lib/ranking";
+import { ctrRate, getCtr, isLowPerformingVariant } from "@/lib/ranking";
 
 export function TelemetryDrawer() {
   const {
@@ -17,6 +17,7 @@ export function TelemetryDrawer() {
     setPruningEnabled,
     avgCtr,
     runPrunePass,
+    pauseLowVariant,
   } = useFeedEngine();
 
   return (
@@ -67,7 +68,7 @@ export function TelemetryDrawer() {
                         checked={pruningEnabled}
                         onChange={(e) => setPruningEnabled(e.target.checked)}
                       />
-                      Auto-prune &lt;30% below avg
+                      Auto-prune &lt;30% relative CTR
                     </label>
                     <button
                       type="button"
@@ -85,12 +86,14 @@ export function TelemetryDrawer() {
                     const stat = getCtr(ctrStats, card.id);
                     const rate = ctrRate(stat);
                     const below = rate < avgCtr * 0.7 && stat.impressions >= 3;
+                    const lowA = isLowPerformingVariant(stat, "A");
+                    const lowB = isLowPerformingVariant(stat, "B");
                     return (
                       <div
                         key={card.id}
                         className="rounded-xl border px-3 py-2 text-xs"
                         style={{
-                          borderColor: below ? theme.accent : theme.border,
+                          borderColor: below || lowA || lowB ? theme.accent : theme.border,
                           opacity: card.pruned ? 0.55 : 1,
                         }}
                       >
@@ -103,7 +106,9 @@ export function TelemetryDrawer() {
                         </div>
                         <div
                           className="mt-1.5 h-1.5 overflow-hidden rounded-full"
-                          style={{ background: theme.dark ? "rgba(255,255,255,0.08)" : "#E8EEF2" }}
+                          style={{
+                            background: theme.dark ? "rgba(255,255,255,0.08)" : "#E8EEF2",
+                          }}
                         >
                           <div
                             className="h-full rounded-full"
@@ -113,6 +118,37 @@ export function TelemetryDrawer() {
                             }}
                           />
                         </div>
+                        {(lowA || lowB) && !card.pruned ? (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {lowA && card.variantPaused !== "A" ? (
+                              <button
+                                type="button"
+                                onClick={() => pauseLowVariant(card.id, "A")}
+                                className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold"
+                                style={{ borderColor: theme.border }}
+                              >
+                                <Pause className="size-3" />
+                                Pause Low-Performing Variant A
+                              </button>
+                            ) : null}
+                            {lowB && card.variantPaused !== "B" ? (
+                              <button
+                                type="button"
+                                onClick={() => pauseLowVariant(card.id, "B")}
+                                className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-semibold"
+                                style={{ borderColor: theme.border }}
+                              >
+                                <Pause className="size-3" />
+                                Pause Low-Performing Variant B
+                              </button>
+                            ) : null}
+                            {card.variantPaused ? (
+                              <span style={{ color: theme.muted }}>
+                                Variant {card.variantPaused} paused
+                              </span>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })}
@@ -123,7 +159,8 @@ export function TelemetryDrawer() {
                 <h3 className="mb-3 text-sm font-semibold">Event stream</h3>
                 {telemetry.length === 0 ? (
                   <p className="text-sm" style={{ color: theme.muted }}>
-                    Interact with cards to stream impressions, clicks, and ICL updates.
+                    Interact with cards to stream impressions, multi-step answers,
+                    campaign publishes, and ICL updates.
                   </p>
                 ) : (
                   <ul className="space-y-2">

@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  Activity,
-  PenSquare,
-  RotateCcw,
-  SlidersHorizontal,
-} from "lucide-react";
+import { Activity, RotateCcw, SlidersHorizontal } from "lucide-react";
 import { useFeedEngine } from "@/context/FeedEngineContext";
 import { entryModifierLabels, lifecycleLabels, portalThemes } from "@/data/portalThemes";
 import type { EntryModifier, LifecycleState, PortalId } from "@/types/cardEngine";
@@ -24,7 +19,6 @@ export function GodModeToolbar() {
     setPortal,
     setLifecycle,
     setEntryModifier,
-    setAuthoringOpen,
     setTelemetryOpen,
     telemetryOpen,
     resetEngine,
@@ -44,22 +38,15 @@ export function GodModeToolbar() {
           <div className="flex items-center gap-2">
             <SlidersHorizontal className="size-4" style={{ color: theme.accent }} />
             <div>
-              <p className="text-sm font-semibold tracking-tight">God Mode · Feed Engine Controller</p>
+              <p className="text-sm font-semibold tracking-tight">
+                God Mode · Feed Engine Controller
+              </p>
               <p className="text-[11px]" style={{ color: theme.muted }}>
                 Portal · lifecycle · entry · ICL live attributes
               </p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setAuthoringOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold"
-              style={{ borderColor: theme.border }}
-            >
-              <PenSquare className="size-3.5" />
-              Author Card
-            </button>
             <button
               type="button"
               onClick={() => setTelemetryOpen(!telemetryOpen)}

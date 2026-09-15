@@ -11,8 +11,19 @@ import {
 } from "react";
 import { initialCards } from "@/data/initialCards";
 import { portalThemes } from "@/data/portalThemes";
+import {
+  clearLocalStorage,
+  fetchSharedCampaigns,
+  isSupabaseConfigured,
+  loadFromLocalStorage,
+  saveToLocalStorage,
+  STORAGE_VERSION,
+  syncCampaignsToSupabase,
+} from "@/lib/persistence";
 import { averageCtr, getCtr, rankCards } from "@/lib/ranking";
 import type {
+  AppMode,
+  AudienceTargeting,
   CardCtrStats,
   CardTemplate,
   EntryModifier,
@@ -26,8 +37,6 @@ import type {
   TelemetryEvent,
   ToastMessage,
 } from "@/types/cardEngine";
-
-const STORAGE_KEY = "bold-daily-feed-engine-v1";
 
 const defaultIcl: IclAttributes = {
   target_role: null,
@@ -47,15 +56,44 @@ function uid(prefix: string) {
 }
 
 function seedCtr(cards: FeedCard[]): CardCtrStats[] {
-  return cards.map((card, index) => ({
-    cardId: card.id,
-    impressions: 8 + ((index * 3) % 7),
-    clicks: 2 + ((index * 2) % 5),
-  }));
+  return cards.map((card, index) => {
+    const impressions = 10 + ((index * 3) % 9);
+    const clicks = 2 + ((index * 2) % 6);
+    const aImp = Math.floor(impressions * 0.55);
+    const bImp = impressions - aImp;
+    const aClk = Math.floor(clicks * (index % 3 === 0 ? 0.75 : 0.5));
+    const bClk = clicks - aClk;
+    return {
+      cardId: card.id,
+      impressions,
+      clicks,
+      variantAImpressions: aImp,
+      variantAClicks: aClk,
+      variantBImpressions: bImp,
+      variantBClicks: bClk,
+    };
+  });
+}
+
+export interface PublishCampaignInput {
+  campaignName: string;
+  headlineA: string;
+  headlineB: string;
+  bodyCopy: string;
+  headerImage: string;
+  template: CardTemplate;
+  targeting: AudienceTargeting;
+  options?: string[];
+  optionsStep2?: string[];
+  step2Prompt?: string;
+  iclKey?: IclAttributeKey;
+  iclKeyStep2?: IclAttributeKey;
 }
 
 interface FeedEngineContextValue {
   hydrated: boolean;
+  mode: AppMode;
+  setMode: (mode: AppMode) => void;
   portal: PortalId;
   lifecycle: LifecycleState;
   entryModifier: EntryModifier;
@@ -69,28 +107,31 @@ interface FeedEngineContextValue {
   pruningEnabled: boolean;
   avgCtr: number;
   toast: ToastMessage | null;
-  authoringOpen: boolean;
   telemetryOpen: boolean;
   activeQuickStitchCardId: string | null;
+  multiStepProgress: Record<string, number>;
+  persistenceLabel: string;
   setPortal: (portal: PortalId) => void;
   setLifecycle: (lifecycle: LifecycleState) => void;
   setEntryModifier: (modifier: EntryModifier) => void;
   setPruningEnabled: (enabled: boolean) => void;
-  setAuthoringOpen: (open: boolean) => void;
   setTelemetryOpen: (open: boolean) => void;
   selectOption: (cardId: string, optionValue: string, iclKey: IclAttributeKey) => void;
+  answerMultiStep: (
+    cardId: string,
+    stepIndex: number,
+    optionValue: string,
+    iclKey: IclAttributeKey,
+    totalSteps: number,
+  ) => void;
   openQuickStitch: (cardId: string) => void;
   closeQuickStitch: () => void;
   applyQuickStitch: (cardId: string) => void;
   toggleMarketplace: (key: keyof MarketplaceState, cardId: string) => void;
   boostVisibility: (cardId: string) => void;
-  publishCard: (input: {
-    template: CardTemplate;
-    headline: string;
-    subtitle?: string;
-    options?: string[];
-    iclKey?: IclAttributeKey;
-  }) => void;
+  publishCampaign: (input: PublishCampaignInput) => Promise<void>;
+  pauseLowVariant: (cardId: string, variant: "A" | "B") => void;
+  setActiveVariant: (cardId: string, variant: "A" | "B") => void;
   recordImpression: (cardId: string) => void;
   clearToast: () => void;
   resetEngine: () => void;
@@ -101,6 +142,7 @@ const FeedEngineContext = createContext<FeedEngineContextValue | null>(null);
 
 export function FeedEngineProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
+  const [mode, setModeState] = useState<AppMode>("candidate");
   const [portal, setPortalState] = useState<PortalId>("mpr");
   const [lifecycle, setLifecycleState] = useState<LifecycleState>("early_1_7");
   const [entryModifier, setEntryModifierState] =
@@ -115,33 +157,33 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
     seedCtr(initialCards),
   );
   const [toast, setToast] = useState<ToastMessage | null>(null);
-  const [authoringOpen, setAuthoringOpen] = useState(false);
   const [telemetryOpen, setTelemetryOpen] = useState(false);
   const [activeQuickStitchCardId, setActiveQuickStitchCardId] = useState<
     string | null
   >(null);
   const [impressed, setImpressed] = useState<Set<string>>(new Set());
+  const [multiStepProgress, setMultiStepProgress] = useState<
+    Record<string, number>
+  >({});
+  const [persistenceLabel, setPersistenceLabel] = useState("LocalStorage");
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Partial<{
-          portal: PortalId;
-          lifecycle: LifecycleState;
-          entryModifier: EntryModifier;
-          icl: IclAttributes;
-          cards: FeedCard[];
-          marketplace: MarketplaceState;
-          pruningEnabled: boolean;
-          telemetry: TelemetryEvent[];
-          ctrStats: CardCtrStats[];
-        }>;
+    async function hydrate() {
+      const parsed = loadFromLocalStorage();
+      if (parsed) {
+        if (parsed.mode) setModeState(parsed.mode);
         if (parsed.portal) setPortalState(parsed.portal);
         if (parsed.lifecycle) setLifecycleState(parsed.lifecycle);
         if (parsed.entryModifier) setEntryModifierState(parsed.entryModifier);
         if (parsed.icl) setIcl({ ...defaultIcl, ...parsed.icl });
-        if (parsed.cards?.length) setCards(parsed.cards);
+        if (parsed.cards?.length) {
+          // Drop removed Phoenix ATS if lingering in old storage
+          setCards(
+            parsed.cards.filter(
+              (c) => c.id !== "phoenix-ats" && !c.headline?.includes("ATS Health"),
+            ),
+          );
+        }
         if (parsed.marketplace)
           setMarketplace({ ...defaultMarketplace, ...parsed.marketplace });
         if (typeof parsed.pruningEnabled === "boolean") {
@@ -150,15 +192,35 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
         if (parsed.telemetry) setTelemetry(parsed.telemetry.slice(0, 80));
         if (parsed.ctrStats?.length) setCtrStats(parsed.ctrStats);
       }
-    } catch {
-      // ignore corrupt storage
+
+      const shared = await fetchSharedCampaigns();
+      if (shared.length) {
+        setCards((prev) => {
+          const ids = new Set(prev.map((c) => c.id));
+          const merged = [...prev];
+          for (const card of shared) {
+            if (!ids.has(card.id)) merged.unshift(card);
+          }
+          return merged;
+        });
+        setPersistenceLabel(
+          isSupabaseConfigured() ? "Supabase + LocalStorage" : "API + LocalStorage",
+        );
+      } else {
+        setPersistenceLabel(
+          isSupabaseConfigured() ? "Supabase ready · LocalStorage" : "LocalStorage",
+        );
+      }
+      setHydrated(true);
     }
-    setHydrated(true);
+    void hydrate();
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
-    const payload = {
+    saveToLocalStorage({
+      version: STORAGE_VERSION,
+      mode,
       portal,
       lifecycle,
       entryModifier,
@@ -168,10 +230,10 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
       pruningEnabled,
       telemetry: telemetry.slice(0, 80),
       ctrStats,
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    });
   }, [
     hydrated,
+    mode,
     portal,
     lifecycle,
     entryModifier,
@@ -211,16 +273,32 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
     setToast({ id: uid("toast"), message });
   }, []);
 
-  const bumpClick = useCallback((cardId: string) => {
+  const bumpClick = useCallback((cardId: string, variant?: "A" | "B") => {
     setCtrStats((prev) => {
       const existing = getCtr(prev, cardId);
       const next = prev.filter((s) => s.cardId !== cardId);
+      const v = variant ?? "A";
       return [
         ...next,
         {
           ...existing,
           clicks: existing.clicks + 1,
           impressions: Math.max(existing.impressions, 1),
+          ...(v === "A"
+            ? {
+                variantAClicks: (existing.variantAClicks ?? 0) + 1,
+                variantAImpressions: Math.max(
+                  existing.variantAImpressions ?? 0,
+                  1,
+                ),
+              }
+            : {
+                variantBClicks: (existing.variantBClicks ?? 0) + 1,
+                variantBImpressions: Math.max(
+                  existing.variantBImpressions ?? 0,
+                  1,
+                ),
+              }),
         },
       ];
     });
@@ -234,16 +312,42 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
         next.add(cardId);
         setCtrStats((stats) => {
           const existing = getCtr(stats, cardId);
+          const card = cards.find((c) => c.id === cardId);
+          const variant = card?.activeVariant ?? "A";
           return [
             ...stats.filter((s) => s.cardId !== cardId),
-            { ...existing, impressions: existing.impressions + 1 },
+            {
+              ...existing,
+              impressions: existing.impressions + 1,
+              ...(variant === "A"
+                ? {
+                    variantAImpressions:
+                      (existing.variantAImpressions ?? 0) + 1,
+                  }
+                : {
+                    variantBImpressions:
+                      (existing.variantBImpressions ?? 0) + 1,
+                  }),
+            },
           ];
         });
         pushTelemetry("card_impression", `Impression · ${cardId}`, cardId);
         return next;
       });
     },
-    [pushTelemetry],
+    [cards, pushTelemetry],
+  );
+
+  const setMode = useCallback(
+    (next: AppMode) => {
+      setModeState(next);
+      showToast(
+        next === "studio"
+          ? "PM Authoring Studio"
+          : "Candidate Feed View",
+      );
+    },
+    [showToast],
   );
 
   const setPortal = useCallback(
@@ -284,8 +388,9 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
 
   const selectOption = useCallback(
     (cardId: string, optionValue: string, iclKey: IclAttributeKey) => {
+      const card = cards.find((c) => c.id === cardId);
       setIcl((prev) => ({ ...prev, [iclKey]: optionValue }));
-      bumpClick(cardId);
+      bumpClick(cardId, card?.activeVariant ?? "A");
       pushTelemetry(
         "icl_attribute_updated",
         `ICL ${iclKey} → ${optionValue}`,
@@ -295,16 +400,52 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
       pushTelemetry("card_click", `Option selected on ${cardId}`, cardId);
       showToast(`Updated ${iclKey.replaceAll("_", " ")}: ${optionValue}`);
     },
-    [bumpClick, pushTelemetry, showToast],
+    [bumpClick, cards, pushTelemetry, showToast],
+  );
+
+  const answerMultiStep = useCallback(
+    (
+      cardId: string,
+      stepIndex: number,
+      optionValue: string,
+      iclKey: IclAttributeKey,
+      totalSteps: number,
+    ) => {
+      const card = cards.find((c) => c.id === cardId);
+      setIcl((prev) => ({ ...prev, [iclKey]: optionValue }));
+      bumpClick(cardId, card?.activeVariant ?? "A");
+      pushTelemetry(
+        "multi_step_answer_logged",
+        `Step ${stepIndex + 1}/${totalSteps}: ${iclKey} → ${optionValue}`,
+        cardId,
+        { stepIndex, iclKey, value: optionValue },
+      );
+      pushTelemetry(
+        "icl_attribute_updated",
+        `ICL ${iclKey} → ${optionValue}`,
+        cardId,
+        { iclKey, value: optionValue },
+      );
+      const nextStep = stepIndex + 1;
+      if (nextStep < totalSteps) {
+        setMultiStepProgress((prev) => ({ ...prev, [cardId]: nextStep }));
+        showToast(`Step ${nextStep + 1} of ${totalSteps}`);
+      } else {
+        setMultiStepProgress((prev) => ({ ...prev, [cardId]: totalSteps }));
+        showToast("Micro-profile complete — feed re-ranked");
+      }
+    },
+    [bumpClick, cards, pushTelemetry, showToast],
   );
 
   const openQuickStitch = useCallback(
     (cardId: string) => {
+      const card = cards.find((c) => c.id === cardId);
       setActiveQuickStitchCardId(cardId);
-      bumpClick(cardId);
+      bumpClick(cardId, card?.activeVariant ?? "A");
       pushTelemetry("card_click", `Opened Quick-Stitch · ${cardId}`, cardId);
     },
-    [bumpClick, pushTelemetry],
+    [bumpClick, cards, pushTelemetry],
   );
 
   const closeQuickStitch = useCallback(() => {
@@ -360,44 +501,69 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
     [bumpClick, pushTelemetry, showToast],
   );
 
-  const publishCard = useCallback(
-    (input: {
-      template: CardTemplate;
-      headline: string;
-      subtitle?: string;
-      options?: string[];
-      iclKey?: IclAttributeKey;
-    }) => {
-      const id = uid("custom");
+  const publishCampaign = useCallback(
+    async (input: PublishCampaignInput) => {
+      const campaignId = uid("campaign");
+      const id = uid("card");
       let content: FeedCard["content"];
+
       if (input.template === "A") {
-        content = {
-          options: (input.options ?? ["Option 1", "Option 2"]).map((label, i) => ({
-            id: `${id}-opt-${i}`,
+        const step1Options = (input.options ?? ["Option 1", "Option 2"]).map(
+          (label, i) => ({
+            id: `${id}-s1-${i}`,
             label,
             value: label,
-          })),
-          iclKey: input.iclKey ?? "target_role",
-        };
+          }),
+        );
+        const step2Options = (input.optionsStep2 ?? []).filter(Boolean);
+        if (step2Options.length > 0) {
+          content = {
+            steps: [
+              {
+                id: `${id}-step-1`,
+                prompt: input.headlineA,
+                options: step1Options,
+                iclKey: input.iclKey ?? "target_role",
+              },
+              {
+                id: `${id}-step-2`,
+                prompt: input.step2Prompt || "What’s next?",
+                options: step2Options.map((label, i) => ({
+                  id: `${id}-s2-${i}`,
+                  label,
+                  value: label,
+                })),
+                iclKey: input.iclKeyStep2 ?? "urgency_tier",
+              },
+            ],
+          };
+        } else {
+          content = {
+            options: step1Options,
+            iclKey: input.iclKey ?? "target_role",
+          };
+        }
       } else if (input.template === "B") {
         content = {
           matchScore: 88,
-          matchLabel: "Custom match opportunity",
-          missingKeywords: ["Leadership", "SQL"],
+          matchLabel: input.campaignName || "Custom match opportunity",
+          missingKeywords: ["Leadership", "SQL", "Stakeholder Mgmt"],
+          completenessScore: 76,
           ctaLabel: "Tailor Resume in 10s",
           modalTitle: "Quick-Stitch Preview",
           modalPreview: [
-            "Inject custom keywords into Skills",
+            "Inject campaign keywords into Skills",
             "Refresh summary for ATS parsers",
+            "Re-score completeness after tailor",
           ],
         };
       } else if (input.template === "C") {
         content = {
-          statLabel: "marketplace signals this week",
-          statValue: 12,
+          statLabel: "recruiters searched profiles like yours",
+          statValue: 27,
           toggleLabel: "Signal Open to Inquiries",
           toggleKey: "open_to_inquiries",
-          detail: "Custom recruiter ping",
+          detail: input.bodyCopy.slice(0, 80) || "Custom recruiter alert",
         };
       } else {
         content = {
@@ -412,27 +578,105 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
         };
       }
 
+      const portalBoost: FeedCard["portalBoost"] = {};
+      if (!input.targeting.portals.includes("all")) {
+        for (const p of input.targeting.portals) {
+          if (p !== "all") portalBoost[p as PortalId] = 14;
+        }
+      }
+
+      const lifecycleBoost: FeedCard["lifecycleBoost"] = {};
+      for (const life of input.targeting.lifecycles) {
+        lifecycleBoost[life] = 8;
+      }
+
       const card: FeedCard = {
         id,
+        campaignId,
+        campaignName: input.campaignName,
         template: input.template,
-        headline: input.headline,
-        subtitle: input.subtitle,
-        priority: 95,
+        headline: input.headlineA,
+        headlineVariantB: input.headlineB || undefined,
+        activeVariant: "A",
+        subtitle: input.bodyCopy.slice(0, 140) || undefined,
+        bodyCopy: input.bodyCopy,
+        headerImage: input.headerImage || undefined,
+        brandTag: input.campaignName || "Campaign",
+        timestampLabel: "Just published",
+        priority: 97,
         custom: true,
+        targeting: input.targeting,
+        portalBoost: Object.keys(portalBoost).length ? portalBoost : undefined,
+        lifecycleBoost: Object.keys(lifecycleBoost).length
+          ? lifecycleBoost
+          : undefined,
         content,
       };
 
       setCards((prev) => [card, ...prev]);
       setCtrStats((prev) => [
-        { cardId: id, impressions: 0, clicks: 0 },
+        {
+          cardId: id,
+          impressions: 0,
+          clicks: 0,
+          variantAImpressions: 0,
+          variantAClicks: 0,
+          variantBImpressions: 0,
+          variantBClicks: 0,
+        },
         ...prev,
       ]);
-      pushTelemetry("card_published", `Published card · ${input.headline}`, id);
-      showToast("Card published to live registry");
-      setAuthoringOpen(false);
+      pushTelemetry(
+        "campaign_published",
+        `Campaign published · ${input.campaignName}`,
+        id,
+        { campaignId, template: input.template },
+      );
+      pushTelemetry("card_published", `Card live · ${input.headlineA}`, id);
+
+      const sync = await syncCampaignsToSupabase([card]);
+      if (sync.mode === "supabase") setPersistenceLabel("Supabase + LocalStorage");
+      else if (sync.mode === "api") setPersistenceLabel("API + LocalStorage");
+
+      showToast(`Published “${input.campaignName}” — live in Candidate Feed`);
+      setModeState("candidate");
     },
     [pushTelemetry, showToast],
   );
+
+  const pauseLowVariant = useCallback(
+    (cardId: string, variant: "A" | "B") => {
+      setCards((prev) =>
+        prev.map((c) => {
+          if (c.id !== cardId) return c;
+          const nextActive: "A" | "B" = variant === "A" ? "B" : "A";
+          return {
+            ...c,
+            variantPaused: variant,
+            activeVariant: nextActive,
+          };
+        }),
+      );
+      pushTelemetry(
+        "variant_paused",
+        `Paused Variant ${variant} on ${cardId}`,
+        cardId,
+        { variant },
+      );
+      showToast(`Paused low-performing Variant ${variant}`);
+    },
+    [pushTelemetry, showToast],
+  );
+
+  const setActiveVariant = useCallback((cardId: string, variant: "A" | "B") => {
+    setCards((prev) =>
+      prev.map((c) =>
+        c.id === cardId && c.variantPaused !== variant
+          ? { ...c, activeVariant: variant }
+          : c,
+      ),
+    );
+  }, []);
 
   const runPrunePass = useCallback(() => {
     const avg = averageCtr(ctrStats);
@@ -453,10 +697,11 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
         return card;
       }),
     );
-    showToast("Prune pass complete (<30% below avg CTR)");
+    showToast("Prune pass complete (<30% relative CTR)");
   }, [ctrStats, pushTelemetry, showToast]);
 
   const resetEngine = useCallback(() => {
+    setModeState("candidate");
     setPortalState("mpr");
     setLifecycleState("early_1_7");
     setEntryModifierState("scratch_builder");
@@ -467,9 +712,10 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
     setTelemetry([]);
     setCtrStats(seedCtr(initialCards));
     setImpressed(new Set());
+    setMultiStepProgress({});
     setActiveQuickStitchCardId(null);
-    localStorage.removeItem(STORAGE_KEY);
-    showToast("Engine reset to seed state");
+    clearLocalStorage();
+    showToast("Engine reset to V2 seed state");
   }, [showToast]);
 
   const rankedCards = useMemo(
@@ -488,6 +734,8 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
 
   const value: FeedEngineContextValue = {
     hydrated,
+    mode,
+    setMode,
     portal,
     lifecycle,
     entryModifier,
@@ -501,22 +749,25 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
     pruningEnabled,
     avgCtr: averageCtr(ctrStats),
     toast,
-    authoringOpen,
     telemetryOpen,
     activeQuickStitchCardId,
+    multiStepProgress,
+    persistenceLabel,
     setPortal,
     setLifecycle,
     setEntryModifier,
     setPruningEnabled,
-    setAuthoringOpen,
     setTelemetryOpen,
     selectOption,
+    answerMultiStep,
     openQuickStitch,
     closeQuickStitch,
     applyQuickStitch,
     toggleMarketplace,
     boostVisibility,
-    publishCard,
+    publishCampaign,
+    pauseLowVariant,
+    setActiveVariant,
     recordImpression,
     clearToast: () => setToast(null),
     resetEngine,
