@@ -39,11 +39,12 @@ type SpotlightRect = {
 };
 
 type TooltipPlacement = {
-  top: number;
+  top?: number;
+  bottom?: number;
   left: number;
   width: number;
   pinned: boolean;
-  placement: "above" | "below" | "pinned";
+  placement: "above" | "below" | "pinned" | "center";
   beam?: { x1: number; y1: number; x2: number; y2: number };
 };
 
@@ -114,27 +115,52 @@ function waitForScrollSettle(ms: number, reduceMotion: boolean): Promise<void> {
   });
 }
 
-function pinnedCardBox(cardH: number, cardW: number) {
+function pinnedCardBox(cardW: number) {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const width = Math.min(cardW, 380, vw - EDGE_MARGIN * 2);
-  const maxCardH = Math.min(cardH, vh * 0.85, vh - 60);
   const left = Math.max(
     EDGE_MARGIN,
     Math.min((vw - width) / 2, vw - width - EDGE_MARGIN),
   );
-  const top = Math.max(EDGE_MARGIN, vh - maxCardH - EDGE_MARGIN);
-  return { top, left, width, maxCardH };
+  // Anchor to bottom so height growth never clips controls.
+  return { bottom: EDGE_MARGIN, left, width };
 }
 
-function pinnedFallbackPlacement(cardH: number, cardW: number): TooltipPlacement {
-  const box = pinnedCardBox(cardH, cardW);
+function pinnedFallbackPlacement(
+  cardW: number,
+  target?: SpotlightRect | null,
+): TooltipPlacement {
+  const box = pinnedCardBox(cardW);
+  const beam = target
+    ? {
+        x1: box.left + box.width / 2,
+        y1: window.innerHeight - EDGE_MARGIN,
+        x2: target.left + target.width / 2,
+        y2: target.top + target.height / 2,
+      }
+    : undefined;
   return {
-    top: box.top,
+    bottom: box.bottom,
     left: box.left,
     width: box.width,
     pinned: true,
     placement: "pinned",
+    beam,
+  };
+}
+
+function centerClampPlacement(cardH: number, cardW: number): TooltipPlacement {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const width = Math.min(cardW, 420, vw - EDGE_MARGIN * 2);
+  const maxCardH = Math.min(cardH, vh * 0.85, vh - EDGE_MARGIN * 2);
+  return {
+    top: Math.max(EDGE_MARGIN, (vh - maxCardH) / 2),
+    left: Math.max(EDGE_MARGIN, (vw - width) / 2),
+    width,
+    pinned: false,
+    placement: "center",
   };
 }
 
@@ -146,26 +172,13 @@ function computeTooltipPlacement(
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const width = Math.min(cardW, vw - EDGE_MARGIN * 2);
-  const maxCardH = Math.min(cardH, vh * 0.85, vh - 60);
+  const maxCardH = Math.min(cardH, vh * 0.85, vh - EDGE_MARGIN * 2);
   const targetCenterX = rect.left + rect.width / 2;
   const targetCenterY = rect.top + rect.height / 2;
 
   // Compact laptop / short viewport: pin card so controls never clip
   if (vh < COMPACT_VIEWPORT_H) {
-    const box = pinnedCardBox(cardH, cardW);
-    return {
-      top: box.top,
-      left: box.left,
-      width: box.width,
-      pinned: true,
-      placement: "pinned",
-      beam: {
-        x1: box.left + box.width / 2,
-        y1: box.top,
-        x2: targetCenterX,
-        y2: targetCenterY,
-      },
-    };
+    return pinnedFallbackPlacement(cardW, rect);
   }
 
   const spaceBelow = vh - (rect.top + rect.height) - FLIP_MARGIN;
@@ -178,7 +191,6 @@ function computeTooltipPlacement(
   } else if (spaceAbove >= needs) {
     placement = "above";
   } else {
-    // Prefer the side with more room
     placement = spaceBelow >= spaceAbove ? "below" : "above";
   }
 
@@ -187,7 +199,6 @@ function computeTooltipPlacement(
       ? rect.top + rect.height + 12
       : rect.top - 12 - maxCardH;
 
-  // Clamp so the card stays fully in viewport
   top = Math.max(EDGE_MARGIN, Math.min(top, vh - maxCardH - EDGE_MARGIN));
 
   let left = targetCenterX - width / 2;
@@ -328,8 +339,12 @@ export function WtfExplainerOverlay({
       cardRef.current?.getBoundingClientRect().width ||
       Math.min(DEFAULT_CARD_W, window.innerWidth - 32);
 
-    // Keep a safe pinned card visible while the target mounts (mode switches).
-    setPlacement(pinnedFallbackPlacement(estimateH, estimateW));
+    // Safe interim placement while the target mounts (mode switches).
+    setPlacement(
+      window.innerHeight < COMPACT_VIEWPORT_H
+        ? pinnedFallbackPlacement(estimateW)
+        : centerClampPlacement(estimateH, estimateW),
+    );
 
     const el = await waitForTarget(step.targetTestId);
     if (gen !== measureGen.current) return;
@@ -347,7 +362,11 @@ export function WtfExplainerOverlay({
     const target = measureTarget(step.targetTestId);
     setRect(target);
     if (!target) {
-      setPlacement(pinnedFallbackPlacement(estimateH, estimateW));
+      setPlacement(
+        window.innerHeight < COMPACT_VIEWPORT_H
+          ? pinnedFallbackPlacement(estimateW)
+          : centerClampPlacement(estimateH, estimateW),
+      );
       return;
     }
 
@@ -758,7 +777,8 @@ function DesktopCard({
     if (tab === "guide" && placement) {
       return {
         position: "fixed" as const,
-        top: placement.top,
+        top: placement.top ?? "auto",
+        bottom: placement.bottom ?? "auto",
         left: placement.left,
         width: placement.width,
       };
@@ -770,7 +790,7 @@ function DesktopCard({
     const width = Math.min(420, vw - 32);
     const height =
       cardRef.current?.getBoundingClientRect().height || DEFAULT_CARD_H;
-    const maxH = Math.min(height, vh * 0.85, vh - 60);
+    const maxH = Math.min(height, vh * 0.85, vh - EDGE_MARGIN * 2);
     return {
       position: "fixed" as const,
       top: Math.max(EDGE_MARGIN, (vh - maxH) / 2),
@@ -791,7 +811,7 @@ function DesktopCard({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 8, scale: 0.98 }}
       transition={{ type: "spring", stiffness: 360, damping: 28 }}
-      className="z-[2] flex max-h-[min(85vh,calc(100vh-60px))] flex-col overflow-hidden rounded-2xl border border-[#D5DEE6] bg-white shadow-2xl"
+      className="z-[2] flex max-h-[min(85vh,calc(100vh-32px))] flex-col overflow-hidden rounded-2xl border border-[#D5DEE6] bg-white shadow-2xl"
       style={style}
       onClick={(e) => e.stopPropagation()}
     >
