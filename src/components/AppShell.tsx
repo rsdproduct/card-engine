@@ -45,7 +45,7 @@ export function AppShell() {
             style={{
               background:
                 theme.id === "boldpro"
-                  ? `radial-gradient(1200px 600px at 10% -10%, rgba(99,102,241,0.22), transparent 55%), radial-gradient(900px 500px at 90% 0%, rgba(168,85,247,0.16), transparent 50%), ${theme.background}`
+                  ? `linear-gradient(180deg, #F8F9FD 0%, #F5F7FF 40%, #EEF0FA 100%)`
                   : theme.id === "monster"
                     ? `linear-gradient(180deg, #FFFFFF 0%, #F7F5FF 45%, #FFFFFF 100%)`
                     : theme.id === "rna"
@@ -101,9 +101,12 @@ function PortalHeader() {
       style={{
         background: theme.surface,
         borderColor: theme.border,
-        boxShadow: theme.glow
-          ? "0 0 0 1px rgba(99,102,241,0.2), 0 18px 50px rgba(99,102,241,0.12)"
-          : undefined,
+        boxShadow:
+          theme.id === "boldpro"
+            ? "0 1px 2px rgba(10,15,44,0.04), 0 8px 24px rgba(10,15,44,0.06)"
+            : theme.glow
+              ? "0 0 0 1px rgba(99,102,241,0.2), 0 18px 50px rgba(99,102,241,0.12)"
+              : undefined,
       }}
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -116,15 +119,7 @@ function PortalHeader() {
           </p>
           <h1
             className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl"
-            style={{
-              background:
-                theme.id === "boldpro"
-                  ? `linear-gradient(90deg, ${theme.accent}, ${theme.accentSecondary})`
-                  : undefined,
-              WebkitBackgroundClip: theme.id === "boldpro" ? "text" : undefined,
-              WebkitTextFillColor: theme.id === "boldpro" ? "transparent" : undefined,
-              color: theme.id === "boldpro" ? undefined : theme.text,
-            }}
+            style={{ color: theme.text }}
           >
             {theme.logoText}
           </h1>
@@ -139,7 +134,7 @@ function PortalHeader() {
                   ? "rgba(99,102,241,0.2)"
                   : `${theme.accent}18`,
             color:
-              theme.id === "monster" ? "#111" : theme.accentSecondary || theme.accent,
+              theme.id === "monster" ? "#111" : theme.accent,
           }}
         >
           {theme.headerBadge}
