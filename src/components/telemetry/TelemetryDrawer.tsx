@@ -21,7 +21,7 @@ export function TelemetryDrawer() {
   } = useFeedEngine();
 
   return (
-    <div className="fixed right-0 bottom-0 left-0 z-30">
+    <div data-testid="telemetry-drawer" className="fixed right-0 bottom-0 left-0 z-30">
       <button
         type="button"
         onClick={() => setTelemetryOpen(!telemetryOpen)}
@@ -62,7 +62,10 @@ export function TelemetryDrawer() {
                 <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-sm font-semibold">Simulated Card CTRs</h3>
                   <div className="flex items-center gap-2">
-                    <label className="inline-flex items-center gap-2 text-xs font-medium">
+                    <label
+                      data-testid="pruning-toggle"
+                      className="inline-flex items-center gap-2 text-xs font-medium"
+                    >
                       <input
                         type="checkbox"
                         checked={pruningEnabled}

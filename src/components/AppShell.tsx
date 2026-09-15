@@ -9,9 +9,14 @@ import { QuickStitchModal } from "@/components/modals/QuickStitchModal";
 import { AuthoringStudio } from "@/components/studio/AuthoringStudio";
 import { GodModeToolbar } from "@/components/toolbar/GodModeToolbar";
 import { TelemetryDrawer } from "@/components/telemetry/TelemetryDrawer";
+import {
+  useWtfExplainer,
+  WtfExplainerOverlay,
+} from "@/components/explainer/WtfExplainer";
 
 export function AppShell() {
   const { theme, toast, clearToast, mode } = useFeedEngine();
+  const { open, hasSeen, openExplainer, closeExplainer } = useWtfExplainer();
 
   useEffect(() => {
     if (!toast) return;
@@ -21,7 +26,10 @@ export function AppShell() {
 
   return (
     <div className="relative min-h-screen">
-      <ModeSwitcher />
+      <ModeSwitcher
+        hasSeenExplainer={hasSeen}
+        onOpenExplainer={openExplainer}
+      />
 
       <AnimatePresence mode="wait">
         {mode === "studio" ? (
@@ -89,6 +97,8 @@ export function AppShell() {
           </motion.div>
         ) : null}
       </AnimatePresence>
+
+      <WtfExplainerOverlay open={open} onClose={closeExplainer} />
     </div>
   );
 }
