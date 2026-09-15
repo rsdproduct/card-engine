@@ -17,8 +17,9 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
-  useMemo,
+  useRef,
   useState,
+  type RefObject,
 } from "react";
 import { useFeedEngine } from "@/context/FeedEngineContext";
 import { cn } from "@/lib/utils";
@@ -28,7 +29,7 @@ import {
   type ExplainerStep,
 } from "./explainerSteps";
 
-type Tab = "tour" | "glossary";
+type Tab = "guide" | "glossary";
 
 type SpotlightRect = {
   top: number;
@@ -37,8 +38,24 @@ type SpotlightRect = {
   height: number;
 };
 
+type TooltipPlacement = {
+  top: number;
+  left: number;
+  width: number;
+  pinned: boolean;
+  placement: "above" | "below" | "pinned";
+  beam?: { x1: number; y1: number; x2: number; y2: number };
+};
+
 const DESKTOP_MQ = "(min-width: 1024px)";
 const PAD = 8;
+const EDGE_MARGIN = 16;
+const FLIP_MARGIN = 30;
+const COMPACT_VIEWPORT_H = 800;
+const SCROLL_SETTLE_MS = 250;
+const PREPARE_DELAY_MS = 80;
+const DEFAULT_CARD_H = 320;
+const DEFAULT_CARD_W = 400;
 
 function readHasSeen(): boolean {
   if (typeof window === "undefined") return false;
@@ -70,6 +87,99 @@ function measureTarget(testId: string): SpotlightRect | null {
       window.innerHeight - Math.max(0, r.top - PAD),
       r.height + PAD * 2,
     ),
+  };
+}
+
+function waitForScrollSettle(ms: number, reduceMotion: boolean): Promise<void> {
+  return new Promise((resolve) => {
+    if (reduceMotion) {
+      window.setTimeout(resolve, 40);
+      return;
+    }
+    let settled: number | null = null;
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      window.removeEventListener("scroll", onScroll, true);
+      if (settled !== null) window.clearTimeout(settled);
+      resolve();
+    };
+    const onScroll = () => {
+      if (settled !== null) window.clearTimeout(settled);
+      settled = window.setTimeout(finish, ms);
+    };
+    window.addEventListener("scroll", onScroll, true);
+    settled = window.setTimeout(finish, ms);
+  });
+}
+
+function computeTooltipPlacement(
+  rect: SpotlightRect,
+  cardH: number,
+  cardW: number,
+): TooltipPlacement {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const width = Math.min(cardW, vw - EDGE_MARGIN * 2);
+  const maxCardH = Math.min(cardH, vh * 0.85, vh - 60);
+  const targetCenterX = rect.left + rect.width / 2;
+  const targetCenterY = rect.top + rect.height / 2;
+
+  // Compact laptop / short viewport: pin card so controls never clip
+  if (vh < COMPACT_VIEWPORT_H) {
+    const pinnedW = Math.min(width, 380);
+    const left = Math.max(
+      EDGE_MARGIN,
+      Math.min((vw - pinnedW) / 2, vw - pinnedW - EDGE_MARGIN),
+    );
+    const top = Math.max(EDGE_MARGIN, vh - maxCardH - EDGE_MARGIN);
+    return {
+      top,
+      left,
+      width: pinnedW,
+      pinned: true,
+      placement: "pinned",
+      beam: {
+        x1: left + pinnedW / 2,
+        y1: top,
+        x2: targetCenterX,
+        y2: targetCenterY,
+      },
+    };
+  }
+
+  const spaceBelow = vh - (rect.top + rect.height) - FLIP_MARGIN;
+  const spaceAbove = rect.top - FLIP_MARGIN;
+  const needs = maxCardH + 12;
+
+  let placement: "above" | "below" = "below";
+  if (spaceBelow >= needs) {
+    placement = "below";
+  } else if (spaceAbove >= needs) {
+    placement = "above";
+  } else {
+    // Prefer the side with more room
+    placement = spaceBelow >= spaceAbove ? "below" : "above";
+  }
+
+  let top =
+    placement === "below"
+      ? rect.top + rect.height + 12
+      : rect.top - 12 - maxCardH;
+
+  // Clamp so the card stays fully in viewport
+  top = Math.max(EDGE_MARGIN, Math.min(top, vh - maxCardH - EDGE_MARGIN));
+
+  let left = targetCenterX - width / 2;
+  left = Math.max(EDGE_MARGIN, Math.min(left, vw - width - EDGE_MARGIN));
+
+  return {
+    top,
+    left,
+    width,
+    pinned: false,
+    placement,
   };
 }
 
@@ -134,9 +244,12 @@ export function WtfExplainerOverlay({
   const { setMode, setTelemetryOpen, theme } = useFeedEngine();
   const reduceMotion = useReducedMotion();
   const [stepIndex, setStepIndex] = useState(0);
-  const [tab, setTab] = useState<Tab>("tour");
+  const [tab, setTab] = useState<Tab>("guide");
   const [isDesktop, setIsDesktop] = useState(false);
   const [rect, setRect] = useState<SpotlightRect | null>(null);
+  const [placement, setPlacement] = useState<TooltipPlacement | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const measureGen = useRef(0);
 
   const step = explainerSteps[stepIndex]!;
   const total = explainerSteps.length;
@@ -166,39 +279,82 @@ export function WtfExplainerOverlay({
     prepareStep(step);
   }, [open, step, prepareStep]);
 
-  const refreshRect = useCallback(() => {
-    if (!open || !isDesktop || tab !== "tour") {
+  const measureAndPlace = useCallback(async () => {
+    if (!open || !isDesktop || tab !== "guide") {
       setRect(null);
+      setPlacement(null);
       return;
     }
+
+    const gen = ++measureGen.current;
+    const el = document.querySelector(`[data-testid="${step.targetTestId}"]`);
+    if (el) {
+      el.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+      await waitForScrollSettle(SCROLL_SETTLE_MS, !!reduceMotion);
+    } else {
+      await new Promise((r) => window.setTimeout(r, PREPARE_DELAY_MS));
+    }
+    if (gen !== measureGen.current) return;
+
     const target = measureTarget(step.targetTestId);
     setRect(target);
-    const el = document.querySelector(`[data-testid="${step.targetTestId}"]`);
-    el?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+    if (!target) {
+      setPlacement(null);
+      return;
+    }
+
+    // First pass with estimated size, then refine after paint with real card height
+    const estimateH =
+      cardRef.current?.getBoundingClientRect().height || DEFAULT_CARD_H;
+    const estimateW =
+      cardRef.current?.getBoundingClientRect().width ||
+      Math.min(DEFAULT_CARD_W, window.innerWidth - 32);
+    const first = computeTooltipPlacement(target, estimateH, estimateW);
+    setPlacement(first);
+
+    requestAnimationFrame(() => {
+      if (gen !== measureGen.current) return;
+      const measuredH =
+        cardRef.current?.getBoundingClientRect().height || estimateH;
+      const measuredW =
+        cardRef.current?.getBoundingClientRect().width || estimateW;
+      const refreshed = measureTarget(step.targetTestId) ?? target;
+      setRect(refreshed);
+      setPlacement(computeTooltipPlacement(refreshed, measuredH, measuredW));
+    });
   }, [open, isDesktop, tab, step.targetTestId, reduceMotion]);
 
   useLayoutEffect(() => {
     if (!open) return;
-    const t = window.setTimeout(refreshRect, 320);
-    return () => window.clearTimeout(t);
-  }, [open, stepIndex, tab, isDesktop, refreshRect]);
+    const t = window.setTimeout(() => {
+      void measureAndPlace();
+    }, PREPARE_DELAY_MS);
+    return () => {
+      window.clearTimeout(t);
+      measureGen.current += 1;
+    };
+  }, [open, stepIndex, tab, isDesktop, measureAndPlace]);
 
   useEffect(() => {
     if (!open || !isDesktop) return;
-    const onResize = () => refreshRect();
+    const onResize = () => {
+      void measureAndPlace();
+    };
     window.addEventListener("resize", onResize);
-    window.addEventListener("scroll", onResize, true);
     return () => {
       window.removeEventListener("resize", onResize);
-      window.removeEventListener("scroll", onResize, true);
     };
-  }, [open, isDesktop, refreshRect]);
+  }, [open, isDesktop, measureAndPlace]);
 
   const goTo = useCallback(
     (index: number) => {
       const next = Math.max(0, Math.min(total - 1, index));
       setStepIndex(next);
-      setTab("tour");
+      setTab("guide");
       prepareStep(explainerSteps[next]!);
     },
     [total, prepareStep],
@@ -215,7 +371,7 @@ export function WtfExplainerOverlay({
         onClose();
         return;
       }
-      if (tab !== "tour") return;
+      if (tab !== "guide") return;
       if (e.key === "ArrowRight") {
         e.preventDefault();
         next();
@@ -237,19 +393,6 @@ export function WtfExplainerOverlay({
     };
   }, [open]);
 
-  const tooltipStyle = useMemo(() => {
-    if (!rect || !isDesktop) return undefined;
-    const cardW = Math.min(400, window.innerWidth - 32);
-    const spaceBelow = window.innerHeight - (rect.top + rect.height);
-    const preferBelow = spaceBelow > 220 || rect.top < 200;
-    const top = preferBelow
-      ? Math.min(rect.top + rect.height + 12, window.innerHeight - 280)
-      : Math.max(16, rect.top - 12 - 260);
-    let left = rect.left + rect.width / 2 - cardW / 2;
-    left = Math.max(16, Math.min(left, window.innerWidth - cardW - 16));
-    return { top, left, width: cardW };
-  }, [rect, isDesktop]);
-
   const onSwipeEnd = (_: unknown, info: PanInfo) => {
     if (Math.abs(info.offset.x) < 60) return;
     if (info.offset.x < 0) next();
@@ -264,14 +407,14 @@ export function WtfExplainerOverlay({
         <motion.div
           key="wtf-explainer"
           data-testid="wtf-explainer-overlay"
-          className="fixed inset-0 z-[70]"
+          className="fixed inset-0 z-[9999]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: reduceMotion ? 0 : 0.2 }}
         >
           {/* Backdrop / spotlight */}
-          {isDesktop && tab === "tour" && rect ? (
+          {isDesktop && tab === "guide" && rect ? (
             <>
               <button
                 type="button"
@@ -293,6 +436,33 @@ export function WtfExplainerOverlay({
                     "0 0 0 9999px rgba(0,0,0,0.55), 0 0 28px rgba(94,234,212,0.35)",
                 }}
               />
+              {placement?.pinned && placement.beam ? (
+                <svg
+                  className="pointer-events-none absolute inset-0 z-[1]"
+                  width="100%"
+                  height="100%"
+                  aria-hidden
+                  data-testid="wtf-explainer-beam"
+                >
+                  <line
+                    x1={placement.beam.x1}
+                    y1={placement.beam.y1}
+                    x2={placement.beam.x2}
+                    y2={placement.beam.y2}
+                    stroke="#5EEAD4"
+                    strokeWidth="2"
+                    strokeDasharray="6 6"
+                    opacity="0.85"
+                  />
+                  <circle
+                    cx={placement.beam.x2}
+                    cy={placement.beam.y2}
+                    r="5"
+                    fill="#5EEAD4"
+                    opacity="0.9"
+                  />
+                </svg>
+              ) : null}
             </>
           ) : (
             <button
@@ -305,13 +475,14 @@ export function WtfExplainerOverlay({
 
           {isDesktop ? (
             <DesktopCard
+              cardRef={cardRef}
               step={step}
               stepIndex={stepIndex}
               total={total}
               tab={tab}
               setTab={setTab}
               Icon={Icon}
-              tooltipStyle={tooltipStyle}
+              placement={placement}
               themeAccent={theme.accent}
               onClose={onClose}
               onPrev={prev}
@@ -349,6 +520,7 @@ function StepControls({
   onNext,
   onClose,
   accent,
+  sticky,
 }: {
   stepIndex: number;
   total: number;
@@ -356,9 +528,18 @@ function StepControls({
   onNext: () => void;
   onClose: () => void;
   accent: string;
+  sticky?: boolean;
 }) {
   return (
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+    <div
+      data-testid="wtf-explainer-controls"
+      className={cn(
+        "flex flex-wrap items-center justify-between gap-2",
+        sticky
+          ? "sticky bottom-0 z-[1] -mx-4 mt-auto border-t border-[#E8EEF3] bg-white px-4 pt-3 pb-1"
+          : "mt-4",
+      )}
+    >
       <button
         type="button"
         onClick={onPrev}
@@ -407,7 +588,7 @@ function TabBar({
     <div className="mb-3 flex gap-1 rounded-lg bg-[#F0F4F8] p-1">
       {(
         [
-          { id: "tour" as const, label: "Guide", icon: Lightbulb },
+          { id: "guide" as const, label: "Guide", icon: Lightbulb },
           { id: "glossary" as const, label: "Glossary", icon: BookOpen },
         ] as const
       ).map((t) => {
@@ -505,13 +686,14 @@ function StepBody({ step, Icon }: { step: ExplainerStep; Icon: ExplainerStep["ic
 }
 
 function DesktopCard({
+  cardRef,
   step,
   stepIndex,
   total,
   tab,
   setTab,
   Icon,
-  tooltipStyle,
+  placement,
   themeAccent,
   onClose,
   onPrev,
@@ -519,13 +701,14 @@ function DesktopCard({
   onJump,
   reduceMotion,
 }: {
+  cardRef: RefObject<HTMLDivElement | null>;
   step: ExplainerStep;
   stepIndex: number;
   total: number;
   tab: Tab;
   setTab: (t: Tab) => void;
   Icon: ExplainerStep["icon"];
-  tooltipStyle?: { top: number; left: number; width: number };
+  placement: TooltipPlacement | null;
   themeAccent: string;
   onClose: () => void;
   onPrev: () => void;
@@ -534,12 +717,12 @@ function DesktopCard({
   reduceMotion: boolean;
 }) {
   const style =
-    tab === "tour" && tooltipStyle
+    tab === "guide" && placement
       ? {
           position: "fixed" as const,
-          top: tooltipStyle.top,
-          left: tooltipStyle.left,
-          width: tooltipStyle.width,
+          top: placement.top,
+          left: placement.left,
+          width: placement.width,
         }
       : {
           position: "fixed" as const,
@@ -551,19 +734,21 @@ function DesktopCard({
 
   return (
     <motion.div
+      ref={cardRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="wtf-explainer-title"
       data-testid="wtf-explainer-desktop"
+      data-placement={placement?.placement ?? "center"}
       initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 8, scale: 0.98 }}
       transition={{ type: "spring", stiffness: 360, damping: 28 }}
-      className="z-[2] max-h-[min(80vh,560px)] overflow-y-auto rounded-2xl border border-[#D5DEE6] bg-white p-4 shadow-2xl"
+      className="z-[2] flex max-h-[min(85vh,calc(100vh-60px))] flex-col overflow-hidden rounded-2xl border border-[#D5DEE6] bg-white shadow-2xl"
       style={style}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="mb-2 flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2 border-b border-[#E8EEF3] px-4 pt-3 pb-1">
         <div className="min-w-0 flex-1">
           <TabBar tab={tab} setTab={setTab} />
         </div>
@@ -571,18 +756,29 @@ function DesktopCard({
           type="button"
           aria-label="Exit Guide"
           onClick={onClose}
-          className="shrink-0 rounded-lg p-1.5 text-[#5A6B7A] hover:bg-[#F0F4F8]"
+          className="mb-3 shrink-0 rounded-lg p-1.5 text-[#5A6B7A] hover:bg-[#F0F4F8]"
         >
           <X className="size-4" />
         </button>
       </div>
 
-      {tab === "tour" ? (
-        <div key={step.id}>
-          <h2 id="wtf-explainer-title" className="sr-only">
-            {step.title}
-          </h2>
-          <StepBody step={step} Icon={Icon} />
+      {tab === "guide" ? (
+        <div key={step.id} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+            <h2 id="wtf-explainer-title" className="sr-only">
+              {step.title}
+            </h2>
+            <StepBody step={step} Icon={Icon} />
+            {stepIndex < total - 1 ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="mt-3 w-full text-center text-[11px] font-semibold text-[#5A6B7A] hover:underline"
+              >
+                Exit Guide
+              </button>
+            ) : null}
+          </div>
           <StepControls
             stepIndex={stepIndex}
             total={total}
@@ -590,19 +786,13 @@ function DesktopCard({
             onNext={onNext}
             onClose={onClose}
             accent={themeAccent || "#0F2537"}
+            sticky
           />
-          {stepIndex < total - 1 ? (
-            <button
-              type="button"
-              onClick={onClose}
-              className="mt-2 w-full text-center text-[11px] font-semibold text-[#5A6B7A] hover:underline"
-            >
-              Exit Guide
-            </button>
-          ) : null}
         </div>
       ) : (
-        <GlossaryList activeId={step.id} onJump={onJump} />
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          <GlossaryList activeId={step.id} onJump={onJump} />
+        </div>
       )}
     </motion.div>
   );
@@ -647,7 +837,7 @@ function MobileSheet({
       animate={{ y: 0 }}
       exit={{ y: "100%" }}
       transition={{ type: "spring", stiffness: 340, damping: 32 }}
-      drag={tab === "tour" ? "x" : false}
+      drag={tab === "guide" ? "x" : false}
       dragConstraints={{ left: 0, right: 0 }}
       dragElastic={0.18}
       onDragEnd={onSwipeEnd}
@@ -669,7 +859,7 @@ function MobileSheet({
         </button>
       </div>
 
-      {tab === "tour" ? (
+      {tab === "guide" ? (
         <AnimatePresence mode="wait">
           <motion.div
             key={step.id}
