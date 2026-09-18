@@ -15,6 +15,8 @@ Repo: [rsdproduct/card-engine](https://github.com/rsdproduct/card-engine)
 - **Telemetry:** `campaign_published`, `card_impression`, `multi_step_answer_logged`, `icl_attribute_updated`, plus pruning with **Pause Low-Performing Variant**
 - God Mode portal/lifecycle/entry controls, ICL badges, Framer Motion transitions
 - **"WTF is all of this?" guided explainer:** desktop spotlight tour + mobile bottom sheet (6 steps), glossary tab, keyboard nav (Esc / ← →)
+- **Share Feedback:** floating trigger (post-auth) opens an open-format modal → Google Sheet webhook + LocalStorage collection log
+- **Prototype passkey gate:** unlocks the app for internal demos; Lock Session returns to the gate
 
 ## Run locally
 
