@@ -1,7 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { CheckCircle2, ExternalLink, Loader2, X } from "lucide-react";
+import { CheckCircle2, Loader2, X } from "lucide-react";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { useFeedEngine } from "@/context/FeedEngineContext";
 import { createFeedbackId, submitFeedback } from "@/lib/feedback";
@@ -181,9 +181,7 @@ export function FeedbackModal({
                   className="mt-2 inline-flex items-center gap-1 text-sm font-semibold transition hover:opacity-80"
                   style={{ color: theme.accent }}
                 >
-                  View Feedback Collection Log
-                  <ExternalLink className="size-3.5" aria-hidden />
-                  <span aria-hidden>↗</span>
+                  View Feedback Collection Log ↗
                 </a>
               </div>
               <button
