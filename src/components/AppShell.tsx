@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { useFeedEngine } from "@/context/FeedEngineContext";
 import { ModeSwitcher } from "@/components/ModeSwitcher";
 import { FeedContainer } from "@/components/feed/FeedContainer";
@@ -15,6 +16,7 @@ import {
 } from "@/components/explainer/WtfExplainer";
 
 export function AppShell() {
+  const { isAuthenticated, isLoading } = useAuth();
   const { theme, toast, clearToast, mode } = useFeedEngine();
   const { open, hasSeen, openExplainer, closeExplainer } = useWtfExplainer();
 
@@ -23,6 +25,10 @@ export function AppShell() {
     const t = window.setTimeout(clearToast, 2400);
     return () => window.clearTimeout(t);
   }, [toast, clearToast]);
+
+  if (isLoading || !isAuthenticated) {
+    return <div className="min-h-screen bg-slate-950" aria-hidden />;
+  }
 
   return (
     <div className="relative min-h-screen">
