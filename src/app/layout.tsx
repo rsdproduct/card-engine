@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Manrope, Sora } from "next/font/google";
+import { AuthProvider } from "@/context/AuthContext";
 import { FeedEngineProvider } from "@/context/FeedEngineContext";
+import { PasswordGate } from "@/components/auth/PasswordGate";
 import "./globals.css";
 
 const sora = Sora({
@@ -28,7 +30,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${sora.variable} ${manrope.variable} h-full antialiased`}
     >
       <body className="min-h-full font-sans">
-        <FeedEngineProvider>{children}</FeedEngineProvider>
+        <AuthProvider>
+          <FeedEngineProvider>
+            {children}
+            <PasswordGate />
+          </FeedEngineProvider>
+        </AuthProvider>
       </body>
     </html>
   );

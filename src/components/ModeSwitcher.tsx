@@ -5,6 +5,7 @@ import { UserRound, Wrench } from "lucide-react";
 import { useFeedEngine } from "@/context/FeedEngineContext";
 import type { AppMode } from "@/types/cardEngine";
 import { cn } from "@/lib/utils";
+import { LockSessionButton } from "@/components/auth/LockSessionButton";
 import { WtfExplainerTrigger } from "@/components/explainer/WtfExplainer";
 
 const modes: Array<{ id: AppMode; label: string; icon: typeof UserRound }> = [
@@ -36,10 +37,13 @@ export function ModeSwitcher({
               Dual-view prototype · {persistenceLabel}
             </p>
           </div>
-          <WtfExplainerTrigger
-            hasSeen={hasSeenExplainer}
-            onOpen={onOpenExplainer}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <LockSessionButton />
+            <WtfExplainerTrigger
+              hasSeen={hasSeenExplainer}
+              onOpen={onOpenExplainer}
+            />
+          </div>
         </div>
 
         <div className="relative flex w-full max-w-xl rounded-xl bg-white/10 p-1 backdrop-blur-sm sm:w-auto">
