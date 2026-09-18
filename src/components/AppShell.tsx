@@ -1,11 +1,13 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useFeedEngine } from "@/context/FeedEngineContext";
 import { ModeSwitcher } from "@/components/ModeSwitcher";
 import { FeedContainer } from "@/components/feed/FeedContainer";
+import { FeedbackModal } from "@/components/modals/FeedbackModal";
+import { FeedbackTrigger } from "@/components/modals/FeedbackTrigger";
 import { QuickStitchModal } from "@/components/modals/QuickStitchModal";
 import { AuthoringStudio } from "@/components/studio/AuthoringStudio";
 import { GodModeToolbar } from "@/components/toolbar/GodModeToolbar";
@@ -19,6 +21,7 @@ export function AppShell() {
   const { isAuthenticated, isLoading } = useAuth();
   const { theme, toast, clearToast, mode } = useFeedEngine();
   const { open, hasSeen, openExplainer, closeExplainer } = useWtfExplainer();
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -105,6 +108,12 @@ export function AppShell() {
       </AnimatePresence>
 
       <WtfExplainerOverlay open={open} onClose={closeExplainer} />
+
+      <FeedbackTrigger onOpen={() => setFeedbackOpen(true)} />
+      <FeedbackModal
+        open={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
+      />
     </div>
   );
 }
