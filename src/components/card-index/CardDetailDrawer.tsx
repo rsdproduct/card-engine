@@ -347,6 +347,7 @@ export function CardDetailDrawer({
                         patch("status", e.target.value as CardStatus)
                       }
                       className={fieldClass}
+                      data-testid="card-index-status"
                     >
                       {CARD_STATUSES.map((s) => (
                         <option key={s} value={s}>
