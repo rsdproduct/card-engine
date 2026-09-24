@@ -17,10 +17,10 @@ import {
 import type { PortalId } from "@/types/cardEngine";
 import type { IndexedCard } from "@/types/cardIndex";
 
-/** Storage key / schema version for Card Index v1.1. */
-export const CARD_INDEX_STORAGE_KEY = "bold-card-index-v2";
-export const CARD_INDEX_VERSION = 2;
-const LEGACY_STORAGE_KEY = "bold-card-index-v1";
+/** Storage key / schema version for Card Index (taxonomy remap forces discard). */
+export const CARD_INDEX_STORAGE_KEY = "bold-card-index-v3";
+export const CARD_INDEX_VERSION = 3;
+const LEGACY_STORAGE_KEYS = ["bold-card-index-v1", "bold-card-index-v2"];
 
 type CardIndexPersisted = {
   version: number;
@@ -43,11 +43,13 @@ const CardIndexContext = createContext<CardIndexContextValue | null>(null);
 function loadEdits(): IndexedCard[] | null {
   if (typeof window === "undefined") return null;
   try {
-    // Drop legacy v1 so remapped seed always wins on first v2 load.
-    try {
-      localStorage.removeItem(LEGACY_STORAGE_KEY);
-    } catch {
-      // ignore
+    // Drop legacy keys so remapped seed always wins on first load of this version.
+    for (const key of LEGACY_STORAGE_KEYS) {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        // ignore
+      }
     }
     const raw = localStorage.getItem(CARD_INDEX_STORAGE_KEY);
     if (!raw) return null;
@@ -77,7 +79,9 @@ function clearEdits() {
   if (typeof window === "undefined") return;
   try {
     localStorage.removeItem(CARD_INDEX_STORAGE_KEY);
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    for (const key of LEGACY_STORAGE_KEYS) {
+      localStorage.removeItem(key);
+    }
   } catch {
     // ignore
   }

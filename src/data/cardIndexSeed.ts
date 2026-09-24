@@ -27,44 +27,44 @@ type SeedMeta = {
 
 /**
  * v1.1 taxonomy remap for CI-001…CI-015.
- * Mission referenced a remap table that was not present in the brief;
- * values below match the v1 seed and are structured for an easy drop-in remap.
+ * Only pillar / mainProduct / subProduct — ids, ideas, statuses, portals,
+ * owners, and sourceCardIds stay on the card records below.
  */
 const TAXONOMY_BY_ID: Record<string, Taxonomy> = {
   "CI-001": {
     pillar: "Job Search",
-    mainProduct: "Career Path",
+    mainProduct: "Jobs",
     subProduct: "Target Role",
   },
   "CI-002": {
     pillar: "Job Search",
-    mainProduct: "Preferences",
-    subProduct: "Work Style",
+    mainProduct: "Jobs",
+    subProduct: "Work Preferences",
   },
   "CI-003": {
-    pillar: "Job Search",
-    mainProduct: "Market Intel",
+    pillar: "Work Productivity & Career Management",
+    mainProduct: "Salary Tools",
     subProduct: "Salary Band",
   },
   "CI-004": {
     pillar: "Career Documents",
-    mainProduct: "Skills",
-    subProduct: "Resume Emphasis",
+    mainProduct: "Resume Builder",
+    subProduct: "Skills Emphasis",
   },
   "CI-005": {
     pillar: "Job Search",
-    mainProduct: "Intent",
-    subProduct: "Urgency Profiling",
+    mainProduct: "Jobs",
+    subProduct: "Search Urgency",
   },
   "CI-006": {
     pillar: "Career Documents",
-    mainProduct: "RTJ Tailor",
-    subProduct: "ATS Keywords",
+    mainProduct: "Resume Optimization",
+    subProduct: "Quick-Stitch RTJ",
   },
   "CI-007": {
     pillar: "Job Search",
-    mainProduct: "MCB Marketplace",
-    subProduct: "Open to Inquiries",
+    mainProduct: "Monster / CareerBuilder",
+    subProduct: "Employer Opt-in",
   },
   "CI-008": {
     pillar: "Work Productivity & Career Management",
@@ -73,38 +73,38 @@ const TAXONOMY_BY_ID: Record<string, Taxonomy> = {
   },
   "CI-009": {
     pillar: "Work Productivity & Career Management",
-    mainProduct: "Digest",
-    subProduct: "Visibility Momentum",
+    mainProduct: "Bold.pro",
+    subProduct: "Profile Analytics",
   },
   "CI-010": {
     pillar: "Career Documents",
-    mainProduct: "Cover Letter",
+    mainProduct: "Cover Letter Builder",
     subProduct: "Tone Selector",
   },
   "CI-011": {
     pillar: "Job Search",
-    mainProduct: "Saved Search",
-    subProduct: "Overnight Digest",
+    mainProduct: "Jobs",
+    subProduct: "Saved Search Digest",
   },
   "CI-012": {
     pillar: "Work Productivity & Career Management",
-    mainProduct: "Goals",
-    subProduct: "Weekly Checklist",
+    mainProduct: "Career Planning",
+    subProduct: "Weekly Goals",
   },
   "CI-013": {
     pillar: "Work Life & Wellness",
-    mainProduct: "Wellness",
+    mainProduct: "Wellness Content",
     subProduct: "Burnout Check-in",
   },
   "CI-014": {
-    pillar: "Work Life & Wellness",
+    pillar: "Work Productivity & Career Management",
     mainProduct: "Interview Prep",
     subProduct: "Calm Tips",
   },
   "CI-015": {
     pillar: "Career Documents",
-    mainProduct: "ATS Health",
-    subProduct: "Score Card",
+    mainProduct: "Resume Optimization",
+    subProduct: "ATS Health Score",
   },
 };
 
