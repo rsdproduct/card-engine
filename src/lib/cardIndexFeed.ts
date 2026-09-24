@@ -17,9 +17,20 @@ export function isHiddenFromFeed(
   return false;
 }
 
-/** Count of index cards currently Paused (for the feed header muted line). */
-export function countPausedInIndex(indexCards: IndexedCard[]): number {
-  return indexCards.filter((c) => c.status === "Paused").length;
+/**
+ * Index entries that would hide a feed card on this portal: linked via
+ * sourceCardId and either Paused/Retired or missing this portal.
+ */
+export function countHiddenFromFeed(
+  indexCards: IndexedCard[],
+  portal: PortalId,
+): number {
+  return indexCards.filter((c) => {
+    if (!c.sourceCardId) return false;
+    if (c.status === "Paused" || c.status === "Retired") return true;
+    if (!c.portals.includes(portal)) return true;
+    return false;
+  }).length;
 }
 
 /** Render-only placeholders — never persist these strings. */

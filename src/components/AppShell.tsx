@@ -131,8 +131,9 @@ export function AppShell() {
 }
 
 function PortalHeader() {
-  const { theme, setMode } = useFeedEngine();
-  const { pausedCount } = useCardIndex();
+  const { theme, setMode, portal } = useFeedEngine();
+  const { countHiddenFromFeed } = useCardIndex();
+  const hiddenCount = countHiddenFromFeed(portal);
   return (
     <header
       className="overflow-hidden rounded-2xl border px-5 py-5"
@@ -182,13 +183,13 @@ function PortalHeader() {
         Habit-forming career management for {theme.name}. Cards share one LinkedIn-style
         container and re-rank from portal, lifecycle, entry path, and ICL signals.
       </p>
-      {pausedCount > 0 ? (
+      {hiddenCount > 0 ? (
         <p
           className="mt-2 text-sm"
           style={{ color: theme.muted }}
           data-testid="feed-paused-index-line"
         >
-          {pausedCount} card{pausedCount === 1 ? "" : "s"} paused in Card Index ·{" "}
+          {hiddenCount} card{hiddenCount === 1 ? "" : "s"} hidden by Card Index ·{" "}
           <button
             type="button"
             onClick={() => setMode("index")}

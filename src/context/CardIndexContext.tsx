@@ -11,7 +11,7 @@ import {
 } from "react";
 import { cardIndexSeed, nextCardIndexId } from "@/data/cardIndexSeed";
 import {
-  countPausedInIndex,
+  countHiddenFromFeed,
   isHiddenFromFeed,
 } from "@/lib/cardIndexFeed";
 import type { PortalId } from "@/types/cardEngine";
@@ -35,7 +35,7 @@ interface CardIndexContextValue {
   addCard: (card?: Partial<IndexedCard>) => IndexedCard;
   resetToSeed: () => void;
   isHiddenFromFeed: (sourceCardId: string, portal: PortalId) => boolean;
-  pausedCount: number;
+  countHiddenFromFeed: (portal: PortalId) => number;
 }
 
 const CardIndexContext = createContext<CardIndexContextValue | null>(null);
@@ -158,7 +158,10 @@ export function CardIndexProvider({ children }: { children: ReactNode }) {
     [cards],
   );
 
-  const pausedCount = useMemo(() => countPausedInIndex(cards), [cards]);
+  const countHidden = useCallback(
+    (portal: PortalId) => countHiddenFromFeed(cards, portal),
+    [cards],
+  );
 
   const value = useMemo(
     () => ({
@@ -169,7 +172,7 @@ export function CardIndexProvider({ children }: { children: ReactNode }) {
       addCard,
       resetToSeed,
       isHiddenFromFeed: isHidden,
-      pausedCount,
+      countHiddenFromFeed: countHidden,
     }),
     [
       hydrated,
@@ -179,7 +182,7 @@ export function CardIndexProvider({ children }: { children: ReactNode }) {
       addCard,
       resetToSeed,
       isHidden,
-      pausedCount,
+      countHidden,
     ],
   );
 
