@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { portalThemes } from "@/data/portalThemes";
+import { displayIdea, displayOwner } from "@/lib/cardIndexFeed";
 import type { PortalId } from "@/types/cardEngine";
 import type { IndexedCard, Pillar } from "@/types/cardIndex";
 import { PortalBadgeRow } from "./PortalBadge";
@@ -19,6 +20,9 @@ export function CardIndexTable({
   groupKey: "pillar" | "portal";
   onSelect: (id: string) => void;
 }) {
+  const hidePillar = groupKey === "pillar";
+  const hidePortals = groupKey === "portal";
+
   return (
     <div className="space-y-3" data-testid="card-index-table">
       {groups.map((group) => (
@@ -32,19 +36,27 @@ export function CardIndexTable({
               : undefined
           }
         >
-          {/* Desktop table */}
-          <div className="hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+          {/* Desktop / tablet table — no horizontal scroll ≥768 */}
+          <div className="hidden md:block">
+            <table className="w-full table-fixed border-collapse text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-[11px] uppercase tracking-wide text-slate-500">
-                  <th className="px-3 py-2 font-semibold">ID</th>
-                  <th className="px-3 py-2 font-semibold">Idea</th>
-                  <th className="px-3 py-2 font-semibold">Pillar</th>
-                  <th className="px-3 py-2 font-semibold">Main Product</th>
-                  <th className="px-3 py-2 font-semibold">Sub Product</th>
-                  <th className="px-3 py-2 font-semibold">Status</th>
-                  <th className="px-3 py-2 font-semibold">Portals</th>
-                  <th className="px-3 py-2 font-semibold">Owner</th>
+                  <th className="w-[72px] px-2 py-2 font-semibold xl:px-3">ID</th>
+                  <th className="px-2 py-2 font-semibold xl:px-3">Idea</th>
+                  {!hidePillar ? (
+                    <th className="px-2 py-2 font-semibold xl:px-3">Pillar</th>
+                  ) : null}
+                  <th className="px-2 py-2 font-semibold xl:px-3">Main Product</th>
+                  <th className="hidden px-2 py-2 font-semibold lg:table-cell xl:px-3">
+                    Sub Product
+                  </th>
+                  <th className="w-[100px] px-2 py-2 font-semibold xl:px-3">Status</th>
+                  {!hidePortals ? (
+                    <th className="px-2 py-2 font-semibold xl:px-3">Portals</th>
+                  ) : null}
+                  <th className="hidden px-2 py-2 font-semibold min-[1100px]:table-cell xl:w-[110px] xl:px-3">
+                    Owner
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -62,26 +74,34 @@ export function CardIndexTable({
                     tabIndex={0}
                     data-testid={`card-index-row-${card.id}`}
                   >
-                    <td className="whitespace-nowrap px-3 py-2.5 font-mono text-xs text-slate-600">
+                    <td className="whitespace-nowrap px-2 py-2.5 font-mono text-xs text-slate-600 xl:px-3">
                       {card.id}
                     </td>
-                    <td className="max-w-[280px] px-3 py-2.5 font-medium text-slate-900">
-                      {card.idea}
+                    <td className="truncate px-2 py-2.5 font-medium text-slate-900 xl:px-3">
+                      {displayIdea(card.idea)}
                     </td>
-                    <td className="px-3 py-2.5 text-slate-600">{card.pillar}</td>
-                    <td className="px-3 py-2.5 text-slate-600">
-                      {card.mainProduct}
+                    {!hidePillar ? (
+                      <td className="truncate px-2 py-2.5 text-slate-600 xl:px-3">
+                        {card.pillar}
+                      </td>
+                    ) : null}
+                    <td className="truncate px-2 py-2.5 text-slate-600 xl:px-3">
+                      {card.mainProduct || "—"}
                     </td>
-                    <td className="px-3 py-2.5 text-slate-600">
-                      {card.subProduct}
+                    <td className="hidden truncate px-2 py-2.5 text-slate-600 lg:table-cell xl:px-3">
+                      {card.subProduct || "—"}
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-2 py-2.5 xl:px-3">
                       <StatusPill status={card.status} />
                     </td>
-                    <td className="px-3 py-2.5">
-                      <PortalBadgeRow portals={card.portals} />
+                    {!hidePortals ? (
+                      <td className="px-2 py-2.5 xl:px-3">
+                        <PortalBadgeRow portals={card.portals} />
+                      </td>
+                    ) : null}
+                    <td className="hidden truncate px-2 py-2.5 text-slate-600 min-[1100px]:table-cell xl:px-3">
+                      {displayOwner(card.owner)}
                     </td>
-                    <td className="px-3 py-2.5 text-slate-600">{card.owner}</td>
                   </tr>
                 ))}
               </tbody>
@@ -105,14 +125,17 @@ export function CardIndexTable({
                     <StatusPill status={card.status} />
                   </div>
                   <p className="mt-1.5 text-sm font-semibold text-slate-900">
-                    {card.idea}
+                    {displayIdea(card.idea)}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    {card.pillar} · {card.mainProduct} · {card.subProduct}
+                    {card.pillar} · {card.mainProduct || "—"} ·{" "}
+                    {card.subProduct || "—"}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
                     <PortalBadgeRow portals={card.portals} />
-                    <span className="text-xs text-slate-500">{card.owner}</span>
+                    <span className="text-xs text-slate-500">
+                      {displayOwner(card.owner)}
+                    </span>
                   </div>
                 </button>
               </li>

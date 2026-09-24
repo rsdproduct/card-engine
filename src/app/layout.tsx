@@ -21,7 +21,7 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "BOLD Daily Feed Card Engine",
   description:
-    "Multi-tenant daily feed prototype for MyPerfectResume, ResumeNow, Zeti, Bold.pro, and Monster.",
+    "Multi-tenant daily feed prototype for MyPerfectResume, ResumeNow, Zety, Bold.pro, and Monster.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -32,12 +32,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full font-sans">
         <AuthProvider>
-          <FeedEngineProvider>
-            <CardIndexProvider>
+          {/* Card Index wraps feed so Pause-to-Feed can filter ranked cards. */}
+          <CardIndexProvider>
+            <FeedEngineProvider>
               {children}
               <PasswordGate />
-            </CardIndexProvider>
-          </FeedEngineProvider>
+            </FeedEngineProvider>
+          </CardIndexProvider>
         </AuthProvider>
       </body>
     </html>

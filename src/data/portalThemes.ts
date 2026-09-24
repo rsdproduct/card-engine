@@ -33,9 +33,9 @@ export const portalThemes: Record<string, PortalTheme> = {
   },
   zeti: {
     id: "zeti",
-    name: "Zeti",
-    shortName: "Zeti",
-    logoText: "ZETI",
+    name: "Zety",
+    shortName: "Zety",
+    logoText: "ZETY",
     background: "#F5F7FB",
     surface: "#FFFFFF",
     text: "#1B2430",

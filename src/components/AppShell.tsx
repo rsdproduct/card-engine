@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useCardIndex } from "@/context/CardIndexContext";
 import { useFeedEngine } from "@/context/FeedEngineContext";
 import { ModeSwitcher } from "@/components/ModeSwitcher";
 import { FeedContainer } from "@/components/feed/FeedContainer";
@@ -130,7 +131,8 @@ export function AppShell() {
 }
 
 function PortalHeader() {
-  const { theme } = useFeedEngine();
+  const { theme, setMode } = useFeedEngine();
+  const { pausedCount } = useCardIndex();
   return (
     <header
       className="overflow-hidden rounded-2xl border px-5 py-5"
@@ -180,6 +182,24 @@ function PortalHeader() {
         Habit-forming career management for {theme.name}. Cards share one LinkedIn-style
         container and re-rank from portal, lifecycle, entry path, and ICL signals.
       </p>
+      {pausedCount > 0 ? (
+        <p
+          className="mt-2 text-sm"
+          style={{ color: theme.muted }}
+          data-testid="feed-paused-index-line"
+        >
+          {pausedCount} card{pausedCount === 1 ? "" : "s"} paused in Card Index ·{" "}
+          <button
+            type="button"
+            onClick={() => setMode("index")}
+            className="font-semibold underline-offset-2 hover:underline"
+            style={{ color: theme.accent }}
+            data-testid="feed-paused-index-link"
+          >
+            Open Card Index
+          </button>
+        </p>
+      ) : null}
     </header>
   );
 }
@@ -187,6 +207,10 @@ function PortalHeader() {
 function EngineBrief() {
   const { theme, rankedCards, portal, lifecycle, entryModifier, setMode } =
     useFeedEngine();
+  const { isHiddenFromFeed, hydrated: indexHydrated } = useCardIndex();
+  const visible = indexHydrated
+    ? rankedCards.filter((c) => !isHiddenFromFeed(c.id, portal))
+    : rankedCards;
   return (
     <div
       className="sticky top-36 rounded-2xl border p-4"
@@ -199,13 +223,13 @@ function EngineBrief() {
         Live ranking brief
       </p>
       <p className="mt-2 text-sm leading-relaxed" style={{ color: theme.muted }}>
-        Showing {rankedCards.length} cards for{" "}
+        Showing {visible.length} cards for{" "}
         <strong style={{ color: theme.text }}>{theme.shortName}</strong>,{" "}
         <strong style={{ color: theme.text }}>{lifecycle.replaceAll("_", " ")}</strong>,{" "}
         <strong style={{ color: theme.text }}>{entryModifier.replaceAll("_", " ")}</strong>.
       </p>
       <ol className="mt-4 space-y-2 text-xs" style={{ color: theme.muted }}>
-        {rankedCards.slice(0, 5).map((card, i) => (
+        {visible.slice(0, 5).map((card, i) => (
           <li key={card.id} className="flex gap-2">
             <span className="font-semibold" style={{ color: theme.text }}>
               {i + 1}.

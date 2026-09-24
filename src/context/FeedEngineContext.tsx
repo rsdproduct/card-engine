@@ -139,6 +139,7 @@ interface FeedEngineContextValue {
   setActiveVariant: (cardId: string, variant: "A" | "B") => void;
   recordImpression: (cardId: string) => void;
   clearToast: () => void;
+  showToast: (message: string) => void;
   resetEngine: () => void;
   runPrunePass: () => void;
 }
@@ -193,7 +194,7 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
           const cleaned = parsed.cards.filter(
             (c) => c.id !== "phoenix-ats" && !c.headline?.includes("ATS Health"),
           );
-          // v3: refresh seed cards with portalScope / Zeti; keep custom campaigns
+          // v3: refresh seed cards with portalScope / Zety; keep custom campaigns
           if ((parsed.version ?? 0) < 3) {
             const custom = cleaned.filter((c) => c.custom || c.campaignId);
             const customIds = new Set(custom.map((c) => c.id));
@@ -816,6 +817,7 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
     setActiveVariant,
     recordImpression,
     clearToast: () => setToast(null),
+    showToast,
     resetEngine,
     runPrunePass,
   };

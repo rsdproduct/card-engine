@@ -22,8 +22,35 @@ import { cn } from "@/lib/utils";
 
 type Draft = Omit<IndexedCard, "portals"> & { portals: PortalId[] };
 
+const ADD_NEW = "__add_new__";
+
 function toDraft(card: IndexedCard): Draft {
   return { ...card, portals: [...card.portals] };
+}
+
+function dedupePreserveCase(values: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of values) {
+    const v = raw.trim();
+    if (!v) continue;
+    const key = v.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(v);
+  }
+  return out.sort((a, b) => a.localeCompare(b));
+}
+
+function resolveProductValue(
+  selected: string,
+  custom: string,
+  existing: string[],
+): string {
+  const raw = selected === ADD_NEW ? custom.trim() : selected.trim();
+  if (!raw) return "";
+  const match = existing.find((e) => e.toLowerCase() === raw.toLowerCase());
+  return match ?? raw;
 }
 
 export function CardDetailDrawer({
@@ -35,15 +62,30 @@ export function CardDetailDrawer({
   open: boolean;
   onClose: () => void;
 }) {
-  const { getCard, updateCard, addCard } = useCardIndex();
-  const { cards: feedCards } = useFeedEngine();
+  const { getCard, updateCard, addCard, cards } = useCardIndex();
+  const { cards: feedCards, showToast } = useFeedEngine();
   const titleId = useId();
+  const ideaId = useId();
+  const pillarId = useId();
+  const mainId = useId();
+  const subId = useId();
+  const statusId = useId();
+  const ownerId = useId();
+  const notesId = useId();
   const isNew = cardId === "__new__";
 
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [mainMode, setMainMode] = useState<"pick" | "add">("pick");
+  const [subMode, setSubMode] = useState<"pick" | "add">("pick");
+  const [mainCustom, setMainCustom] = useState("");
+  const [subCustom, setSubCustom] = useState("");
+  const [triedSave, setTriedSave] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    setTriedSave(false);
+    setMainCustom("");
+    setSubCustom("");
     if (isNew) {
       setDraft({
         id: "",
@@ -56,10 +98,16 @@ export function CardDetailDrawer({
         owner: "",
         notes: "",
       });
+      setMainMode("pick");
+      setSubMode("pick");
       return;
     }
     const card = cardId ? getCard(cardId) : undefined;
-    if (card) setDraft(toDraft(card));
+    if (card) {
+      setDraft(toDraft(card));
+      setMainMode("pick");
+      setSubMode("pick");
+    }
   }, [open, isNew, cardId, getCard]);
 
   useEffect(() => {
@@ -71,11 +119,37 @@ export function CardDetailDrawer({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  const mainOptions = useMemo(
+    () => dedupePreserveCase(cards.map((c) => c.mainProduct)),
+    [cards],
+  );
+
+  const subOptions = useMemo(() => {
+    const mainKey =
+      mainMode === "add"
+        ? mainCustom.trim().toLowerCase()
+        : (draft?.mainProduct ?? "").trim().toLowerCase();
+    if (!mainKey) {
+      return dedupePreserveCase(cards.map((c) => c.subProduct));
+    }
+    return dedupePreserveCase(
+      cards
+        .filter((c) => c.mainProduct.trim().toLowerCase() === mainKey)
+        .map((c) => c.subProduct),
+    );
+  }, [cards, draft?.mainProduct, mainMode, mainCustom]);
+
   const previewCard = useMemo(() => {
     const sourceId = draft?.sourceCardId;
     if (!sourceId) return null;
     return feedCards.find((c) => c.id === sourceId) ?? null;
   }, [draft?.sourceCardId, feedCards]);
+
+  const ideaError =
+    triedSave && !draft?.idea.trim() ? "Add a short idea." : "";
+  const pillarError =
+    triedSave && !draft?.pillar ? "Pick a pillar." : "";
+  const canSave = Boolean(draft?.idea.trim() && draft?.pillar);
 
   const patch = <K extends keyof Draft>(key: K, value: Draft[K]) => {
     setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
@@ -96,31 +170,50 @@ export function CardDetailDrawer({
 
   const handleSave = () => {
     if (!draft) return;
+    setTriedSave(true);
+    const idea = draft.idea.trim();
+    if (!idea || !draft.pillar) return;
+
+    const mainProduct = resolveProductValue(
+      mainMode === "add" ? ADD_NEW : draft.mainProduct,
+      mainCustom,
+      mainOptions,
+    );
+    const subProduct = resolveProductValue(
+      subMode === "add" ? ADD_NEW : draft.subProduct,
+      subCustom,
+      subOptions,
+    );
+
+    const nextStatus = draft.status;
+    const payload = {
+      idea,
+      pillar: draft.pillar,
+      mainProduct,
+      subProduct,
+      status: nextStatus,
+      portals: draft.portals,
+      owner: draft.owner.trim(),
+      notes: draft.notes?.trim() || undefined,
+      sourceCardId: draft.sourceCardId,
+    };
+
+    const prevStatus = isNew ? null : cardId ? getCard(cardId)?.status : null;
+
     if (isNew) {
-      addCard({
-        idea: draft.idea.trim() || "Untitled idea",
-        pillar: draft.pillar,
-        mainProduct: draft.mainProduct.trim(),
-        subProduct: draft.subProduct.trim(),
-        status: draft.status,
-        portals: draft.portals,
-        owner: draft.owner.trim() || "Unassigned",
-        notes: draft.notes?.trim() || undefined,
-        sourceCardId: draft.sourceCardId,
-      });
+      addCard(payload);
     } else if (cardId) {
-      updateCard(cardId, {
-        idea: draft.idea.trim(),
-        pillar: draft.pillar,
-        mainProduct: draft.mainProduct.trim(),
-        subProduct: draft.subProduct.trim(),
-        status: draft.status,
-        portals: draft.portals,
-        owner: draft.owner.trim(),
-        notes: draft.notes?.trim() || undefined,
-        sourceCardId: draft.sourceCardId,
-      });
+      updateCard(cardId, payload);
     }
+
+    if (nextStatus === "Paused" || nextStatus === "Retired") {
+      if (prevStatus !== nextStatus) {
+        showToast("Paused. This card is now hidden from the feed.");
+      }
+    } else if (nextStatus === "Live" && prevStatus && prevStatus !== "Live") {
+      showToast("Live. This card is back in the feed.");
+    }
+
     onClose();
   };
 
@@ -186,20 +279,26 @@ export function CardDetailDrawer({
                     handleSave();
                   }}
                 >
-                  <Field label="Idea">
+                  <Field label="Idea" htmlFor={ideaId} error={ideaError}>
                     <textarea
+                      id={ideaId}
                       value={draft.idea}
                       onChange={(e) => patch("idea", e.target.value)}
                       rows={3}
-                      className={fieldClass}
+                      className={cn(fieldClass, ideaError && "border-rose-400")}
                       placeholder="Short plain description of the card idea"
+                      aria-invalid={Boolean(ideaError)}
+                      aria-describedby={ideaError ? `${ideaId}-err` : undefined}
+                      required
                     />
                   </Field>
-                  <Field label="Pillar">
+                  <Field label="Pillar" htmlFor={pillarId} error={pillarError}>
                     <select
+                      id={pillarId}
                       value={draft.pillar}
                       onChange={(e) => patch("pillar", e.target.value as Pillar)}
                       className={fieldClass}
+                      required
                     >
                       {PILLARS.map((p) => (
                         <option key={p} value={p}>
@@ -209,23 +308,40 @@ export function CardDetailDrawer({
                     </select>
                   </Field>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <Field label="Main product">
-                      <input
-                        value={draft.mainProduct}
-                        onChange={(e) => patch("mainProduct", e.target.value)}
-                        className={fieldClass}
-                      />
-                    </Field>
-                    <Field label="Sub product">
-                      <input
-                        value={draft.subProduct}
-                        onChange={(e) => patch("subProduct", e.target.value)}
-                        className={fieldClass}
-                      />
-                    </Field>
+                    <SelectOrAdd
+                      label="Main product"
+                      selectId={mainId}
+                      mode={mainMode}
+                      setMode={setMainMode}
+                      selected={draft.mainProduct}
+                      onSelect={(v) => {
+                        patch("mainProduct", v);
+                        // Clear sub when main changes so filtered options stay valid.
+                        patch("subProduct", "");
+                        setSubMode("pick");
+                        setSubCustom("");
+                      }}
+                      custom={mainCustom}
+                      onCustom={setMainCustom}
+                      options={mainOptions}
+                      testId="card-index-main-product"
+                    />
+                    <SelectOrAdd
+                      label="Sub product"
+                      selectId={subId}
+                      mode={subMode}
+                      setMode={setSubMode}
+                      selected={draft.subProduct}
+                      onSelect={(v) => patch("subProduct", v)}
+                      custom={subCustom}
+                      onCustom={setSubCustom}
+                      options={subOptions}
+                      testId="card-index-sub-product"
+                    />
                   </div>
-                  <Field label="Status">
+                  <Field label="Status" htmlFor={statusId}>
                     <select
+                      id={statusId}
                       value={draft.status}
                       onChange={(e) =>
                         patch("status", e.target.value as CardStatus)
@@ -239,14 +355,19 @@ export function CardDetailDrawer({
                       ))}
                     </select>
                   </Field>
-                  <Field label="Owner">
+                  <Field label="Owner" htmlFor={ownerId}>
                     <input
+                      id={ownerId}
                       value={draft.owner}
                       onChange={(e) => patch("owner", e.target.value)}
                       className={fieldClass}
+                      placeholder="Unassigned"
                     />
                   </Field>
-                  <Field label="Portals">
+                  <fieldset>
+                    <legend className="mb-1 block text-xs font-semibold text-slate-600">
+                      Portals
+                    </legend>
                     <div className="flex flex-wrap gap-2">
                       {ALL_PORTAL_IDS.map((id) => {
                         const on = draft.portals.includes(id);
@@ -274,9 +395,10 @@ export function CardDetailDrawer({
                         );
                       })}
                     </div>
-                  </Field>
-                  <Field label="Notes">
+                  </fieldset>
+                  <Field label="Notes" htmlFor={notesId}>
                     <textarea
+                      id={notesId}
                       value={draft.notes ?? ""}
                       onChange={(e) => patch("notes", e.target.value)}
                       rows={2}
@@ -331,7 +453,9 @@ export function CardDetailDrawer({
               <button
                 type="button"
                 onClick={handleSave}
-                className="rounded-lg bg-[#0F2537] px-4 py-2 text-sm font-semibold text-white hover:bg-[#163249]"
+                disabled={!canSave}
+                className="rounded-lg bg-[#0F2537] px-4 py-2 text-sm font-semibold text-white hover:bg-[#163249] disabled:cursor-not-allowed disabled:opacity-50"
+                data-testid="card-index-save"
               >
                 Save
               </button>
@@ -348,17 +472,116 @@ const fieldClass =
 
 function Field({
   label,
+  htmlFor,
+  error,
   children,
 }: {
   label: string;
+  htmlFor?: string;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-semibold text-slate-600">
+    <div className="block">
+      <label
+        htmlFor={htmlFor}
+        className="mb-1 block text-xs font-semibold text-slate-600"
+      >
         {label}
-      </span>
+      </label>
       {children}
-    </label>
+      {error ? (
+        <p
+          id={htmlFor ? `${htmlFor}-err` : undefined}
+          className="mt-1 text-xs font-medium text-rose-600"
+          role="alert"
+        >
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function SelectOrAdd({
+  label,
+  selectId,
+  mode,
+  setMode,
+  selected,
+  onSelect,
+  custom,
+  onCustom,
+  options,
+  testId,
+}: {
+  label: string;
+  selectId: string;
+  mode: "pick" | "add";
+  setMode: (m: "pick" | "add") => void;
+  selected: string;
+  onSelect: (v: string) => void;
+  custom: string;
+  onCustom: (v: string) => void;
+  options: string[];
+  testId: string;
+}) {
+  const customId = `${selectId}-custom`;
+  return (
+    <div>
+      <label
+        htmlFor={mode === "add" ? customId : selectId}
+        className="mb-1 block text-xs font-semibold text-slate-600"
+      >
+        {label}
+      </label>
+      {mode === "add" ? (
+        <div className="space-y-1.5">
+          <input
+            id={customId}
+            value={custom}
+            onChange={(e) => onCustom(e.target.value)}
+            className={fieldClass}
+            placeholder="Type a new name"
+            data-testid={`${testId}-custom`}
+            autoFocus
+          />
+          <button
+            type="button"
+            className="text-xs font-semibold text-teal-700 hover:underline"
+            onClick={() => {
+              setMode("pick");
+              onCustom("");
+            }}
+          >
+            Pick existing instead
+          </button>
+        </div>
+      ) : (
+        <select
+          id={selectId}
+          value={selected}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v === ADD_NEW) {
+              setMode("add");
+              onSelect("");
+              return;
+            }
+            onSelect(v);
+          }}
+          className={fieldClass}
+          data-testid={testId}
+        >
+          <option value="">—</option>
+          {options.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+          <option value={ADD_NEW}>+ Add new…</option>
+        </select>
+      )}
+    </div>
   );
 }

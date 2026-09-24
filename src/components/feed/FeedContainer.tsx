@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useCardIndex } from "@/context/CardIndexContext";
 import { useFeedEngine } from "@/context/FeedEngineContext";
 import type { FeedCard } from "@/types/cardEngine";
 import { GRADIENT_FALLBACK } from "@/data/imagePresets";
@@ -139,7 +140,13 @@ export function UniformCard({ card }: { card: FeedCard }) {
 }
 
 export function FeedContainer() {
-  const { rankedCards, theme, hydrated } = useFeedEngine();
+  const { rankedCards, theme, hydrated, portal } = useFeedEngine();
+  const { isHiddenFromFeed, hydrated: indexHydrated } = useCardIndex();
+
+  const visibleCards = useMemo(() => {
+    if (!indexHydrated) return rankedCards;
+    return rankedCards.filter((card) => !isHiddenFromFeed(card.id, portal));
+  }, [rankedCards, isHiddenFromFeed, portal, indexHydrated]);
 
   if (!hydrated) {
     return (
@@ -152,18 +159,19 @@ export function FeedContainer() {
     );
   }
 
-  if (rankedCards.length === 0) {
+  if (visibleCards.length === 0) {
     return (
       <div
         className="rounded-2xl border border-dashed p-10 text-center"
         style={{ borderColor: theme.border, color: theme.muted }}
+        data-testid="candidate-feed-empty"
       >
         <p className="text-base font-medium" style={{ color: theme.text }}>
           No cards in the live feed
         </p>
         <p className="mt-2 text-sm">
           Open PM Authoring Studio to publish a campaign, disable pruning, or reset
-          the engine.
+          the engine. Paused or retired cards in Card Index stay hidden here.
         </p>
       </div>
     );
@@ -176,7 +184,7 @@ export function FeedContainer() {
       className="mx-auto flex max-w-xl flex-col gap-4"
     >
       <AnimatePresence mode="popLayout">
-        {rankedCards.map((card) => (
+        {visibleCards.map((card) => (
           <UniformCard key={card.id} card={card} />
         ))}
       </AnimatePresence>
