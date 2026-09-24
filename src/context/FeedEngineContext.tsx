@@ -176,7 +176,13 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
     async function hydrate() {
       const parsed = loadFromLocalStorage();
       if (parsed) {
-        if (parsed.mode) setModeState(parsed.mode);
+        if (
+          parsed.mode === "candidate" ||
+          parsed.mode === "studio" ||
+          parsed.mode === "index"
+        ) {
+          setModeState(parsed.mode);
+        }
         if (parsed.portal && ALL_PORTAL_IDS.includes(parsed.portal)) {
           setPortalState(parsed.portal);
         }
@@ -372,7 +378,9 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
       showToast(
         next === "studio"
           ? "PM Authoring Studio"
-          : "Candidate Feed View",
+          : next === "index"
+            ? "Card Index"
+            : "Candidate Feed View",
       );
     },
     [showToast],

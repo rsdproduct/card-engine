@@ -16,7 +16,7 @@ export type EntryModifier = "uploader" | "scratch_builder";
 
 export type CardTemplate = "A" | "B" | "C" | "D";
 
-export type AppMode = "candidate" | "studio";
+export type AppMode = "candidate" | "studio" | "index";
 
 export type SearchIntent =
   | "actively_applying"

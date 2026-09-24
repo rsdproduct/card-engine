@@ -10,6 +10,7 @@ import { FeedbackModal } from "@/components/modals/FeedbackModal";
 import { FeedbackTrigger } from "@/components/modals/FeedbackTrigger";
 import { QuickStitchModal } from "@/components/modals/QuickStitchModal";
 import { AuthoringStudio } from "@/components/studio/AuthoringStudio";
+import { CardIndexPage } from "@/components/card-index/CardIndexPage";
 import { GodModeToolbar } from "@/components/toolbar/GodModeToolbar";
 import { TelemetryDrawer } from "@/components/telemetry/TelemetryDrawer";
 import {
@@ -50,6 +51,16 @@ export function AppShell() {
             transition={{ duration: 0.28 }}
           >
             <AuthoringStudio />
+          </motion.div>
+        ) : mode === "index" ? (
+          <motion.div
+            key="index"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.28 }}
+          >
+            <CardIndexPage />
           </motion.div>
         ) : (
           <motion.div

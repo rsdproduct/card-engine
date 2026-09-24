@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope, Sora } from "next/font/google";
 import { AuthProvider } from "@/context/AuthContext";
+import { CardIndexProvider } from "@/context/CardIndexContext";
 import { FeedEngineProvider } from "@/context/FeedEngineContext";
 import { PasswordGate } from "@/components/auth/PasswordGate";
 import "./globals.css";
@@ -32,8 +33,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full font-sans">
         <AuthProvider>
           <FeedEngineProvider>
-            {children}
-            <PasswordGate />
+            <CardIndexProvider>
+              {children}
+              <PasswordGate />
+            </CardIndexProvider>
           </FeedEngineProvider>
         </AuthProvider>
       </body>

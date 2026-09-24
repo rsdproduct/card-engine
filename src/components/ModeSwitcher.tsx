@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { UserRound, Wrench } from "lucide-react";
+import { LayoutList, UserRound, Wrench } from "lucide-react";
 import { useFeedEngine } from "@/context/FeedEngineContext";
 import type { AppMode } from "@/types/cardEngine";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ import { WtfExplainerTrigger } from "@/components/explainer/WtfExplainer";
 const modes: Array<{ id: AppMode; label: string; icon: typeof UserRound }> = [
   { id: "candidate", label: "Candidate Feed View", icon: UserRound },
   { id: "studio", label: "PM Authoring Studio", icon: Wrench },
+  { id: "index", label: "Card Index", icon: LayoutList },
 ];
 
 export function ModeSwitcher({
@@ -46,7 +47,7 @@ export function ModeSwitcher({
           </div>
         </div>
 
-        <div className="relative flex w-full max-w-xl rounded-xl bg-white/10 p-1 backdrop-blur-sm sm:w-auto">
+        <div className="relative flex w-full max-w-2xl rounded-xl bg-white/10 p-1 backdrop-blur-sm sm:w-auto">
           {modes.map((m) => {
             const active = mode === m.id;
             const Icon = m.icon;
@@ -55,11 +56,15 @@ export function ModeSwitcher({
                 key={m.id}
                 type="button"
                 data-testid={
-                  m.id === "studio" ? "mode-studio" : "mode-candidate"
+                  m.id === "studio"
+                    ? "mode-studio"
+                    : m.id === "index"
+                      ? "mode-index"
+                      : "mode-candidate"
                 }
                 onClick={() => setMode(m.id)}
                 className={cn(
-                  "relative z-10 flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold transition sm:flex-none sm:px-4",
+                  "relative z-10 flex flex-1 items-center justify-center gap-2 rounded-lg px-2.5 py-2.5 text-xs font-semibold transition sm:flex-none sm:px-3.5",
                   active ? "text-[#0F2537]" : "text-white/80 hover:text-white",
                 )}
               >
@@ -70,9 +75,16 @@ export function ModeSwitcher({
                     transition={{ type: "spring", stiffness: 420, damping: 32 }}
                   />
                 ) : null}
-                <span className="relative z-10 inline-flex items-center gap-2">
-                  <Icon className="size-3.5" />
-                  {m.label}
+                <span className="relative z-10 inline-flex items-center gap-1.5 sm:gap-2">
+                  <Icon className="size-3.5 shrink-0" />
+                  <span className="sm:hidden">
+                    {m.id === "candidate"
+                      ? "Feed"
+                      : m.id === "studio"
+                        ? "Studio"
+                        : "Index"}
+                  </span>
+                  <span className="hidden sm:inline">{m.label}</span>
                 </span>
               </button>
             );
