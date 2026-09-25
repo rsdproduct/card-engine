@@ -161,7 +161,7 @@ export function AuthoringStudio() {
   const [template, setTemplate] = useState<CardTemplate>("A");
   const [targeting, setTargeting] = useState<AudienceTargeting>(defaultTargeting);
   const [optionsText, setOptionsText] = useState(
-    "Actively applying, Quietly exploring, Keeping options open",
+    "Actively applying, Just looking, Not looking right now",
   );
   const [optionsTextStep2, setOptionsTextStep2] = useState(
     "More role matches, Salary & level intel, Recruiter reach",
@@ -489,7 +489,7 @@ export function AuthoringStudio() {
                 <input
                   value={headlineB}
                   onChange={(e) => setHeadlineB(e.target.value)}
-                  placeholder="How hot is your search right now?"
+                  placeholder="How soon do you want a new job?"
                   className={fieldClass}
                 />
               </label>

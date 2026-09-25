@@ -21,6 +21,7 @@ import {
   STORAGE_VERSION,
   syncCampaignsToSupabase,
 } from "@/lib/persistence";
+import { isHiddenFromFeed } from "@/lib/cardIndexFeed";
 import { averageCtr, getCtr, rankCards } from "@/lib/ranking";
 import {
   ALL_PORTAL_IDS,
@@ -202,7 +203,7 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
             (c) => c.id !== "phoenix-ats" && !c.headline?.includes("ATS Health"),
           );
           // v3+: refresh seed cards with portalScope / Zety; keep custom campaigns
-          // v4: also refresh seed copy (urgency headline) while keeping custom cards
+          // v4–v5: refresh seed copy while keeping custom Studio cards
           if ((parsed.version ?? 0) < STORAGE_VERSION) {
             const custom = cleaned.filter((c) => c.custom || c.campaignId);
             const customIds = new Set(custom.map((c) => c.id));
@@ -737,13 +738,22 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
+  const visibleCtrStats = useMemo(
+    () =>
+      ctrStats.filter(
+        (s) => !isHiddenFromFeed(s.cardId, portal, indexCards),
+      ),
+    [ctrStats, portal, indexCards],
+  );
+
   const runPrunePass = useCallback(() => {
-    const avg = averageCtr(ctrStats);
+    const avg = averageCtr(visibleCtrStats);
     const threshold = avg * 0.7;
     const toPause: Array<{ cardId: string; ratePct: number }> = [];
 
     for (const card of cards) {
       if (card.pruned) continue;
+      if (isHiddenFromFeed(card.id, portal, indexCards)) continue;
       const ctr = getCtr(ctrStats, card.id);
       if (ctr.impressions < 3) continue;
       const rate = ctr.clicks / ctr.impressions;
@@ -781,7 +791,16 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
     showToast(
       `Prune pass complete. ${toPause.length} cards paused in the Card Index.`,
     );
-  }, [cards, ctrStats, indexCards, pushTelemetry, showToast, updateCard]);
+  }, [
+    cards,
+    ctrStats,
+    visibleCtrStats,
+    indexCards,
+    portal,
+    pushTelemetry,
+    showToast,
+    updateCard,
+  ]);
 
   const unpruneCard = useCallback((cardId: string) => {
     setCards((prev) =>
@@ -835,7 +854,7 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
     telemetry,
     ctrStats,
     pruningEnabled,
-    avgCtr: averageCtr(ctrStats),
+    avgCtr: averageCtr(visibleCtrStats),
     toast,
     telemetryOpen,
     activeQuickStitchCardId,

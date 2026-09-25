@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Pause, Scissors } from "lucide-react";
 import { useCardIndex } from "@/context/CardIndexContext";
@@ -15,13 +16,24 @@ export function TelemetryDrawer() {
     telemetry,
     ctrStats,
     cards,
+    portal,
     pruningEnabled,
     setPruningEnabled,
     avgCtr,
     runPrunePass,
     pauseLowVariant,
   } = useFeedEngine();
-  const { cards: indexCards } = useCardIndex();
+  const { cards: indexCards, isHiddenFromFeed } = useCardIndex();
+
+  const orderedCards = useMemo(() => {
+    const visible: typeof cards = [];
+    const hidden: typeof cards = [];
+    for (const card of cards) {
+      if (isHiddenFromFeed(card.id, portal)) hidden.push(card);
+      else visible.push(card);
+    }
+    return [...visible, ...hidden];
+  }, [cards, isHiddenFromFeed, portal]);
 
   return (
     <div data-testid="telemetry-drawer" className="fixed right-0 bottom-0 left-0 z-30">
@@ -89,27 +101,50 @@ export function TelemetryDrawer() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  {cards.map((card) => {
+                  {orderedCards.map((card) => {
                     const stat = getCtr(ctrStats, card.id);
                     const rate = ctrRate(stat);
-                    const below = rate < avgCtr * 0.7 && stat.impressions >= 3;
+                    const hidden = isHiddenFromFeed(card.id, portal);
+                    const below =
+                      !hidden && rate < avgCtr * 0.7 && stat.impressions >= 3;
                     const lowA = isLowPerformingVariant(stat, "A");
                     const lowB = isLowPerformingVariant(stat, "B");
                     const label = getCardLabel(card.id, indexCards, card);
                     return (
                       <div
                         key={card.id}
+                        data-testid={hidden ? "telemetry-paused-row" : "telemetry-row"}
                         className="rounded-xl border px-3 py-2 text-xs"
                         style={{
-                          borderColor: below || lowA || lowB ? theme.accent : theme.border,
-                          opacity: card.pruned ? 0.55 : 1,
+                          borderColor:
+                            below || lowA || lowB ? theme.accent : theme.border,
+                          opacity: hidden ? 0.5 : card.pruned ? 0.55 : 1,
                         }}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold">{label}</span>
-                          <span style={{ color: theme.muted }}>
+                          <span className="inline-flex min-w-0 items-center gap-2 font-semibold">
+                            <span className="truncate">{label}</span>
+                            {hidden ? (
+                              <span
+                                className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                                style={{
+                                  background: theme.dark
+                                    ? "rgba(255,255,255,0.08)"
+                                    : "rgba(15,37,55,0.08)",
+                                  color: theme.muted,
+                                }}
+                              >
+                                Paused
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="shrink-0" style={{ color: theme.muted }}>
                             {stat.clicks}/{stat.impressions} · {Math.round(rate * 100)}%
-                            {card.pruned ? " · pruned" : below ? " · at risk" : ""}
+                            {!hidden && card.pruned
+                              ? " · pruned"
+                              : !hidden && below
+                                ? " · at risk"
+                                : ""}
                           </span>
                         </div>
                         <div
@@ -126,7 +161,7 @@ export function TelemetryDrawer() {
                             }}
                           />
                         </div>
-                        {(lowA || lowB) && !card.pruned ? (
+                        {!hidden && (lowA || lowB) && !card.pruned ? (
                           <div className="mt-2 flex flex-wrap gap-2">
                             {lowA && card.variantPaused !== "A" ? (
                               <button

@@ -254,9 +254,6 @@ function EngineBrief() {
       >
         Open PM Authoring Studio
       </button>
-      <p className="mt-3 text-[11px]" style={{ color: theme.muted }}>
-        Portal id: {portal}
-      </p>
     </div>
   );
 }
