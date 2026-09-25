@@ -1,7 +1,8 @@
 import type { EnginePersistedState, FeedCard } from "@/types/cardEngine";
 
 export const STORAGE_KEY = "bold-daily-feed-engine-v2";
-export const STORAGE_VERSION = 3;
+/** v4: refresh seed copy (urgency headline) while keeping custom Studio cards. */
+export const STORAGE_VERSION = 4;
 
 function hasSupabaseEnv() {
   return Boolean(

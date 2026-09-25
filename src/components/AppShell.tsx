@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useCardIndex } from "@/context/CardIndexContext";
 import { useFeedEngine } from "@/context/FeedEngineContext";
+import { getCardLabel } from "@/lib/cardLabels";
 import { ModeSwitcher } from "@/components/ModeSwitcher";
 import { FeedContainer } from "@/components/feed/FeedContainer";
 import { FeedbackModal } from "@/components/modals/FeedbackModal";
@@ -42,14 +43,14 @@ export function AppShell() {
         onOpenExplainer={openExplainer}
       />
 
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         {mode === "studio" ? (
           <motion.div
             key="studio"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.28 }}
+            transition={{ duration: 0.15 }}
           >
             <AuthoringStudio />
           </motion.div>
@@ -59,7 +60,7 @@ export function AppShell() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.28 }}
+            transition={{ duration: 0.15 }}
           >
             <CardIndexPage />
           </motion.div>
@@ -69,7 +70,7 @@ export function AppShell() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.28 }}
+            transition={{ duration: 0.15 }}
             className="pb-28 transition-colors"
             style={{
               background:
@@ -208,7 +209,11 @@ function PortalHeader() {
 function EngineBrief() {
   const { theme, rankedCards, portal, lifecycle, entryModifier, setMode } =
     useFeedEngine();
-  const { isHiddenFromFeed, hydrated: indexHydrated } = useCardIndex();
+  const {
+    isHiddenFromFeed,
+    hydrated: indexHydrated,
+    cards: indexCards,
+  } = useCardIndex();
   const visible = indexHydrated
     ? rankedCards.filter((c) => !isHiddenFromFeed(c.id, portal))
     : rankedCards;
@@ -236,7 +241,7 @@ function EngineBrief() {
               {i + 1}.
             </span>
             <span>
-              {card.id} · T{card.template}
+              {getCardLabel(card.id, indexCards, card)} · T{card.template}
             </span>
           </li>
         ))}

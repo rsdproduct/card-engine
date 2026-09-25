@@ -4,6 +4,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import { UniformCard } from "@/components/feed/FeedContainer";
+import {
+  ProductPicker,
+  dedupePreserveCase,
+  resolveProductValue,
+  ADD_NEW,
+} from "@/components/card-index/ProductPicker";
 import { useCardIndex } from "@/context/CardIndexContext";
 import { useFeedEngine } from "@/context/FeedEngineContext";
 import { ALL_PORTAL_IDS } from "@/lib/portalScope";
@@ -22,35 +28,8 @@ import { cn } from "@/lib/utils";
 
 type Draft = Omit<IndexedCard, "portals"> & { portals: PortalId[] };
 
-const ADD_NEW = "__add_new__";
-
 function toDraft(card: IndexedCard): Draft {
   return { ...card, portals: [...card.portals] };
-}
-
-function dedupePreserveCase(values: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const raw of values) {
-    const v = raw.trim();
-    if (!v) continue;
-    const key = v.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(v);
-  }
-  return out.sort((a, b) => a.localeCompare(b));
-}
-
-function resolveProductValue(
-  selected: string,
-  custom: string,
-  existing: string[],
-): string {
-  const raw = selected === ADD_NEW ? custom.trim() : selected.trim();
-  if (!raw) return "";
-  const match = existing.find((e) => e.toLowerCase() === raw.toLowerCase());
-  return match ?? raw;
 }
 
 export function CardDetailDrawer({
@@ -63,7 +42,7 @@ export function CardDetailDrawer({
   onClose: () => void;
 }) {
   const { getCard, updateCard, addCard, cards } = useCardIndex();
-  const { cards: feedCards, showToast } = useFeedEngine();
+  const { cards: feedCards, showToast, unpruneCard } = useFeedEngine();
   const titleId = useId();
   const ideaId = useId();
   const pillarId = useId();
@@ -211,6 +190,9 @@ export function CardDetailDrawer({
         showToast("Paused. This card is now hidden from the feed.");
       }
     } else if (nextStatus === "Live" && prevStatus && prevStatus !== "Live") {
+      if (draft.sourceCardId) {
+        unpruneCard(draft.sourceCardId);
+      }
       showToast("Live. This card is back in the feed.");
     }
 
@@ -308,7 +290,7 @@ export function CardDetailDrawer({
                     </select>
                   </Field>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <SelectOrAdd
+                    <ProductPicker
                       label="Main product"
                       selectId={mainId}
                       mode={mainMode}
@@ -316,7 +298,6 @@ export function CardDetailDrawer({
                       selected={draft.mainProduct}
                       onSelect={(v) => {
                         patch("mainProduct", v);
-                        // Clear sub when main changes so filtered options stay valid.
                         patch("subProduct", "");
                         setSubMode("pick");
                         setSubCustom("");
@@ -326,7 +307,7 @@ export function CardDetailDrawer({
                       options={mainOptions}
                       testId="card-index-main-product"
                     />
-                    <SelectOrAdd
+                    <ProductPicker
                       label="Sub product"
                       selectId={subId}
                       mode={subMode}
@@ -500,89 +481,6 @@ function Field({
           {error}
         </p>
       ) : null}
-    </div>
-  );
-}
-
-function SelectOrAdd({
-  label,
-  selectId,
-  mode,
-  setMode,
-  selected,
-  onSelect,
-  custom,
-  onCustom,
-  options,
-  testId,
-}: {
-  label: string;
-  selectId: string;
-  mode: "pick" | "add";
-  setMode: (m: "pick" | "add") => void;
-  selected: string;
-  onSelect: (v: string) => void;
-  custom: string;
-  onCustom: (v: string) => void;
-  options: string[];
-  testId: string;
-}) {
-  const customId = `${selectId}-custom`;
-  return (
-    <div>
-      <label
-        htmlFor={mode === "add" ? customId : selectId}
-        className="mb-1 block text-xs font-semibold text-slate-600"
-      >
-        {label}
-      </label>
-      {mode === "add" ? (
-        <div className="space-y-1.5">
-          <input
-            id={customId}
-            value={custom}
-            onChange={(e) => onCustom(e.target.value)}
-            className={fieldClass}
-            placeholder="Type a new name"
-            data-testid={`${testId}-custom`}
-            autoFocus
-          />
-          <button
-            type="button"
-            className="text-xs font-semibold text-teal-700 hover:underline"
-            onClick={() => {
-              setMode("pick");
-              onCustom("");
-            }}
-          >
-            Pick existing instead
-          </button>
-        </div>
-      ) : (
-        <select
-          id={selectId}
-          value={selected}
-          onChange={(e) => {
-            const v = e.target.value;
-            if (v === ADD_NEW) {
-              setMode("add");
-              onSelect("");
-              return;
-            }
-            onSelect(v);
-          }}
-          className={fieldClass}
-          data-testid={testId}
-        >
-          <option value="">—</option>
-          {options.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-          <option value={ADD_NEW}>+ Add new…</option>
-        </select>
-      )}
     </div>
   );
 }

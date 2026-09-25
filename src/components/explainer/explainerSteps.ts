@@ -3,6 +3,7 @@ import {
   Gauge,
   Layers3,
   LayoutGrid,
+  LayoutList,
   Scissors,
   Sparkles,
   Wrench,
@@ -14,6 +15,7 @@ export type ExplainerStepId =
   | "icl-badges"
   | "uniform-cards"
   | "pm-studio"
+  | "card-index"
   | "telemetry"
   | "pruning";
 
@@ -36,7 +38,7 @@ export const EXPLAINER_STORAGE_KEY = "card-engine-wtf-explainer-seen";
 export const explainerSteps: ExplainerStep[] = [
   {
     id: "god-mode",
-    title: "God Mode Multi-Tenant Controller",
+    title: "Demo Controls",
     summary: "One engine, four white-label portals.",
     body: "Switch portal brand, lifecycle stage, and entry path instantly. The same card registry re-ranks for MPR, RNA, Bold.pro, and Monster — without rebuilding the feed.",
     bullets: [
@@ -47,7 +49,7 @@ export const explainerSteps: ExplainerStep[] = [
     targetTestId: "god-mode-toolbar",
     mode: "candidate",
     icon: Gauge,
-    glossaryLabel: "God Mode controller",
+    glossaryLabel: "Demo controls",
     mobilePreview: "Portal · Lifecycle · Entry switchers",
   },
   {
@@ -98,6 +100,22 @@ export const explainerSteps: ExplainerStep[] = [
     icon: Wrench,
     glossaryLabel: "PM Authoring Studio",
     mobilePreview: "Campaign form · portal chips · publish",
+  },
+  {
+    id: "card-index",
+    title: "Card Index",
+    summary: "One list for every card idea.",
+    body: "Browse every feed card in one place. Pause or retire a card here and it leaves the Candidate Feed. Publish from Studio and the new card shows up here as Live.",
+    bullets: [
+      "Filter by pillar, product, status, or portal",
+      "Open a row to edit and preview the live design",
+      "Paused and retired cards stay out of the feed",
+    ],
+    targetTestId: "card-index-header",
+    mode: "index",
+    icon: LayoutList,
+    glossaryLabel: "Card Index",
+    mobilePreview: "Catalog table · filters · drawer",
   },
   {
     id: "telemetry",

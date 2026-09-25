@@ -2,7 +2,9 @@
 
 import { Plus, RotateCcw, Search, SlidersHorizontal, X } from "lucide-react";
 import { useId, useMemo, useState } from "react";
+import { ResetDemoDialog } from "@/components/demo/ResetDemoDialog";
 import { useCardIndex } from "@/context/CardIndexContext";
+import { useResetDemo } from "@/hooks/useResetDemo";
 import { ALL_PORTAL_IDS } from "@/lib/portalScope";
 import { portalThemes } from "@/data/portalThemes";
 import type { PortalId } from "@/types/cardEngine";
@@ -19,7 +21,9 @@ import { CardIndexTable, pillarOrder } from "./CardIndexTable";
 import { cn } from "@/lib/utils";
 
 export function CardIndexPage() {
-  const { cards, hydrated, resetToSeed } = useCardIndex();
+  const { cards, hydrated } = useCardIndex();
+  const { confirmOpen, requestReset, cancelReset, confirmReset } =
+    useResetDemo();
   const [view, setView] = useState<CardIndexView>("all");
   const [search, setSearch] = useState("");
   const [pillar, setPillar] = useState<Pillar | "">("");
@@ -28,7 +32,6 @@ export function CardIndexPage() {
   const [portal, setPortal] = useState<PortalId | "">("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [confirmReset, setConfirmReset] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const searchId = useId();
 
@@ -117,7 +120,7 @@ export function CardIndexPage() {
       data-testid="card-index-page"
     >
       <div className="mx-auto max-w-7xl px-4 py-6">
-        <header className="mb-5">
+        <header className="mb-5" data-testid="card-index-header">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-700">
             Catalog
           </p>
@@ -174,12 +177,12 @@ export function CardIndexPage() {
             </button>
             <button
               type="button"
-              onClick={() => setConfirmReset(true)}
+              onClick={requestReset}
               data-testid="card-index-reset"
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
             >
               <RotateCcw className="size-3.5" />
-              Reset sample data
+              Reset demo
             </button>
           </div>
         </div>
@@ -322,48 +325,12 @@ export function CardIndexPage() {
         }}
       />
 
-      {confirmReset ? (
-        <div
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/40 p-4"
-          role="alertdialog"
-          aria-labelledby="reset-title"
-          aria-describedby="reset-desc"
-          data-testid="card-index-reset-confirm"
-        >
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
-            <h3
-              id="reset-title"
-              className="text-lg font-semibold text-slate-900"
-            >
-              Reset to sample data?
-            </h3>
-            <p id="reset-desc" className="mt-2 text-sm text-slate-600">
-              This clears your local edits and puts the seed list back. Feed cards
-              hidden by Pause or Retired come back too. You cannot undo.
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmReset(false)}
-                className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  resetToSeed();
-                  setConfirmReset(false);
-                }}
-                className="rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-700"
-                data-testid="card-index-reset-confirm-yes"
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ResetDemoDialog
+        open={confirmOpen}
+        onCancel={cancelReset}
+        onConfirm={confirmReset}
+        confirmTestId="card-index-reset-confirm-yes"
+      />
     </div>
   );
 }

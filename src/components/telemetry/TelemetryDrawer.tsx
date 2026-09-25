@@ -2,7 +2,9 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronDown, Pause, Scissors } from "lucide-react";
+import { useCardIndex } from "@/context/CardIndexContext";
 import { useFeedEngine } from "@/context/FeedEngineContext";
+import { getCardLabel } from "@/lib/cardLabels";
 import { ctrRate, getCtr, isLowPerformingVariant } from "@/lib/ranking";
 
 export function TelemetryDrawer() {
@@ -19,6 +21,7 @@ export function TelemetryDrawer() {
     runPrunePass,
     pauseLowVariant,
   } = useFeedEngine();
+  const { cards: indexCards } = useCardIndex();
 
   return (
     <div data-testid="telemetry-drawer" className="fixed right-0 bottom-0 left-0 z-30">
@@ -76,6 +79,7 @@ export function TelemetryDrawer() {
                     <button
                       type="button"
                       onClick={runPrunePass}
+                      data-testid="run-prune"
                       className="inline-flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-semibold"
                       style={{ borderColor: theme.border }}
                     >
@@ -91,6 +95,7 @@ export function TelemetryDrawer() {
                     const below = rate < avgCtr * 0.7 && stat.impressions >= 3;
                     const lowA = isLowPerformingVariant(stat, "A");
                     const lowB = isLowPerformingVariant(stat, "B");
+                    const label = getCardLabel(card.id, indexCards, card);
                     return (
                       <div
                         key={card.id}
@@ -101,7 +106,7 @@ export function TelemetryDrawer() {
                         }}
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold">{card.id}</span>
+                          <span className="font-semibold">{label}</span>
                           <span style={{ color: theme.muted }}>
                             {stat.clicks}/{stat.impressions} · {Math.round(rate * 100)}%
                             {card.pruned ? " · pruned" : below ? " · at risk" : ""}

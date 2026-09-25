@@ -241,7 +241,7 @@ export function WtfExplainerTrigger({
       type="button"
       data-testid="wtf-explainer-trigger"
       title="Interactive Prototype Walkthrough & Architecture Guide"
-      aria-label="WTF is all of this? Interactive Prototype Walkthrough"
+      aria-label="How this works: interactive walkthrough"
       onClick={onOpen}
       className={cn(
         "relative inline-flex items-center gap-1.5 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/15",
@@ -255,8 +255,8 @@ export function WtfExplainerTrigger({
         />
       ) : null}
       <Lightbulb className="size-3.5 text-[#5EEAD4]" />
-      <span className="hidden sm:inline">WTF is all of this?</span>
-      <span className="sm:hidden">WTF?</span>
+      <span className="hidden sm:inline">How this works</span>
+      <span className="sm:hidden">Help</span>
     </button>
   );
 }

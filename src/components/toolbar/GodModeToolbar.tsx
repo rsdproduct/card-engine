@@ -1,7 +1,9 @@
 "use client";
 
 import { Activity, RotateCcw, SlidersHorizontal } from "lucide-react";
+import { ResetDemoDialog } from "@/components/demo/ResetDemoDialog";
 import { useFeedEngine } from "@/context/FeedEngineContext";
+import { useResetDemo } from "@/hooks/useResetDemo";
 import { entryModifierLabels, lifecycleLabels, portalThemes } from "@/data/portalThemes";
 import type { EntryModifier, LifecycleState, PortalId } from "@/types/cardEngine";
 import { IclBadgeDisplay } from "./IclBadgeDisplay";
@@ -21,8 +23,9 @@ export function GodModeToolbar() {
     setEntryModifier,
     setTelemetryOpen,
     telemetryOpen,
-    resetEngine,
   } = useFeedEngine();
+  const { confirmOpen, requestReset, cancelReset, confirmReset } =
+    useResetDemo();
 
   return (
     <div
@@ -40,7 +43,7 @@ export function GodModeToolbar() {
             <SlidersHorizontal className="size-4" style={{ color: theme.accent }} />
             <div>
               <p className="text-sm font-semibold tracking-tight">
-                God Mode · Feed Engine Controller
+                Demo Controls · Feed Engine
               </p>
               <p className="text-[11px]" style={{ color: theme.muted }}>
                 Portal · lifecycle · entry · ICL live attributes
@@ -59,12 +62,13 @@ export function GodModeToolbar() {
             </button>
             <button
               type="button"
-              onClick={resetEngine}
+              onClick={requestReset}
               className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold"
               style={{ borderColor: theme.border, color: theme.muted }}
+              data-testid="feed-reset-demo"
             >
               <RotateCcw className="size-3.5" />
-              Reset
+              Reset demo
             </button>
           </div>
         </div>
@@ -101,6 +105,13 @@ export function GodModeToolbar() {
 
         <IclBadgeDisplay />
       </div>
+
+      <ResetDemoDialog
+        open={confirmOpen}
+        onCancel={cancelReset}
+        onConfirm={confirmReset}
+        confirmTestId="feed-reset-demo-confirm-yes"
+      />
     </div>
   );
 }

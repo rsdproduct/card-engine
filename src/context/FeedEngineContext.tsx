@@ -11,6 +11,7 @@ import {
 } from "react";
 import { initialCards } from "@/data/initialCards";
 import { portalThemes } from "@/data/portalThemes";
+import { useCardIndex } from "@/context/CardIndexContext";
 import {
   clearLocalStorage,
   fetchSharedCampaigns,
@@ -42,6 +43,7 @@ import type {
   TelemetryEvent,
   ToastMessage,
 } from "@/types/cardEngine";
+import type { Pillar } from "@/types/cardIndex";
 
 const defaultIcl: IclAttributes = {
   target_role: null,
@@ -93,6 +95,9 @@ export interface PublishCampaignInput {
   step2Prompt?: string;
   iclKey?: IclAttributeKey;
   iclKeyStep2?: IclAttributeKey;
+  pillar?: Pillar;
+  mainProduct?: string;
+  subProduct?: string;
 }
 
 interface FeedEngineContextValue {
@@ -142,11 +147,13 @@ interface FeedEngineContextValue {
   showToast: (message: string) => void;
   resetEngine: () => void;
   runPrunePass: () => void;
+  unpruneCard: (cardId: string) => void;
 }
 
 const FeedEngineContext = createContext<FeedEngineContextValue | null>(null);
 
 export function FeedEngineProvider({ children }: { children: ReactNode }) {
+  const { cards: indexCards, addCard, updateCard } = useCardIndex();
   const [hydrated, setHydrated] = useState(false);
   const [mode, setModeState] = useState<AppMode>("candidate");
   const [portal, setPortalState] = useState<PortalId>("mpr");
@@ -194,8 +201,9 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
           const cleaned = parsed.cards.filter(
             (c) => c.id !== "phoenix-ats" && !c.headline?.includes("ATS Health"),
           );
-          // v3: refresh seed cards with portalScope / Zety; keep custom campaigns
-          if ((parsed.version ?? 0) < 3) {
+          // v3+: refresh seed cards with portalScope / Zety; keep custom campaigns
+          // v4: also refresh seed copy (urgency headline) while keeping custom cards
+          if ((parsed.version ?? 0) < STORAGE_VERSION) {
             const custom = cleaned.filter((c) => c.custom || c.campaignId);
             const customIds = new Set(custom.map((c) => c.id));
             setCards([
@@ -373,19 +381,9 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
     [cards, pushTelemetry],
   );
 
-  const setMode = useCallback(
-    (next: AppMode) => {
-      setModeState(next);
-      showToast(
-        next === "studio"
-          ? "PM Authoring Studio"
-          : next === "index"
-            ? "Card Index"
-            : "Candidate Feed View",
-      );
-    },
-    [showToast],
-  );
+  const setMode = useCallback((next: AppMode) => {
+    setModeState(next);
+  }, []);
 
   const setPortal = useCallback(
     (next: PortalId) => {
@@ -685,10 +683,24 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
       if (sync.mode === "supabase") setPersistenceLabel("Supabase + LocalStorage");
       else if (sync.mode === "api") setPersistenceLabel("API + LocalStorage");
 
-      showToast(`Published “${input.campaignName}” — live in Candidate Feed`);
+      const indexed = addCard({
+        idea: input.campaignName.trim() || input.headlineA,
+        pillar: input.pillar ?? "Other",
+        mainProduct: input.mainProduct?.trim() ?? "",
+        subProduct: input.subProduct?.trim() ?? "",
+        status: "Live",
+        portals: concrete,
+        owner: "You",
+        sourceCardId: id,
+        notes: "Published from PM Authoring Studio.",
+      });
+
+      showToast(
+        `Published "${input.campaignName}" as ${indexed.id}. It is live in the feed and in the Card Index.`,
+      );
       setModeState("candidate");
     },
-    [pushTelemetry, showToast],
+    [addCard, pushTelemetry, showToast],
   );
 
   const pauseLowVariant = useCallback(
@@ -728,24 +740,54 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
   const runPrunePass = useCallback(() => {
     const avg = averageCtr(ctrStats);
     const threshold = avg * 0.7;
-    setCards((prev) =>
-      prev.map((card) => {
-        const ctr = getCtr(ctrStats, card.id);
-        if (ctr.impressions < 3) return card;
-        const rate = ctr.clicks / ctr.impressions;
-        if (rate < threshold) {
+    const toPause: Array<{ cardId: string; ratePct: number }> = [];
+
+    for (const card of cards) {
+      if (card.pruned) continue;
+      const ctr = getCtr(ctrStats, card.id);
+      if (ctr.impressions < 3) continue;
+      const rate = ctr.clicks / ctr.impressions;
+      if (rate < threshold) {
+        toPause.push({ cardId: card.id, ratePct: Math.round(rate * 100) });
+      }
+    }
+
+    if (toPause.length > 0) {
+      const pauseIds = new Set(toPause.map((p) => p.cardId));
+      setCards((prev) =>
+        prev.map((card) => {
+          if (!pauseIds.has(card.id)) return card;
+          const info = toPause.find((p) => p.cardId === card.id)!;
           pushTelemetry(
             "card_pruned",
-            `Pruned ${card.id} (${Math.round(rate * 100)}% < ${Math.round(threshold * 100)}% thr)`,
+            `Pruned ${card.id} (${info.ratePct}% < ${Math.round(threshold * 100)}% thr)`,
             card.id,
           );
           return { ...card, pruned: true };
+        }),
+      );
+
+      for (const item of toPause) {
+        const entry = indexCards.find((c) => c.sourceCardId === item.cardId);
+        if (entry) {
+          updateCard(entry.id, {
+            status: "Paused",
+            notes: `Paused by pruning: CTR below 30% (was ${item.ratePct}%).`,
+          });
         }
-        return card;
-      }),
+      }
+    }
+
+    showToast(
+      `Prune pass complete. ${toPause.length} cards paused in the Card Index.`,
     );
-    showToast("Prune pass complete (<30% relative CTR)");
-  }, [ctrStats, pushTelemetry, showToast]);
+  }, [cards, ctrStats, indexCards, pushTelemetry, showToast, updateCard]);
+
+  const unpruneCard = useCallback((cardId: string) => {
+    setCards((prev) =>
+      prev.map((c) => (c.id === cardId && c.pruned ? { ...c, pruned: false } : c)),
+    );
+  }, []);
 
   const resetEngine = useCallback(() => {
     setModeState("candidate");
@@ -762,8 +804,7 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
     setMultiStepProgress({});
     setActiveQuickStitchCardId(null);
     clearLocalStorage();
-    showToast("Engine reset to V2 seed state");
-  }, [showToast]);
+  }, []);
 
   const rankedCards = useMemo(
     () =>
@@ -820,6 +861,7 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
     showToast,
     resetEngine,
     runPrunePass,
+    unpruneCard,
   };
 
   return (

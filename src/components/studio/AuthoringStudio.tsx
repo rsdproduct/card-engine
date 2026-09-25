@@ -1,7 +1,14 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useId, useMemo, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import {
+  ProductPicker,
+  dedupePreserveCase,
+  resolveProductValue,
+  ADD_NEW,
+} from "@/components/card-index/ProductPicker";
+import { useCardIndex } from "@/context/CardIndexContext";
 import { useFeedEngine } from "@/context/FeedEngineContext";
 import { HEADER_IMAGE_PRESETS, GRADIENT_FALLBACK } from "@/data/imagePresets";
 import { lifecycleLabels, portalThemes } from "@/data/portalThemes";
@@ -26,6 +33,7 @@ import type {
   PortalScopeItem,
   SearchIntent,
 } from "@/types/cardEngine";
+import { PILLARS, type Pillar } from "@/types/cardIndex";
 import { cn } from "@/lib/utils";
 
 const templateMeta: Record<
@@ -136,7 +144,15 @@ function PreviewCard({
 
 export function AuthoringStudio() {
   const { publishCampaign, persistenceLabel } = useFeedEngine();
+  const { cards: indexCards } = useCardIndex();
   const [campaignName, setCampaignName] = useState("");
+  const [pillar, setPillar] = useState<Pillar>("Other");
+  const [mainProduct, setMainProduct] = useState("");
+  const [subProduct, setSubProduct] = useState("");
+  const [mainMode, setMainMode] = useState<"pick" | "add">("pick");
+  const [subMode, setSubMode] = useState<"pick" | "add">("pick");
+  const [mainCustom, setMainCustom] = useState("");
+  const [subCustom, setSubCustom] = useState("");
   const [headlineA, setHeadlineA] = useState("");
   const [headlineB, setHeadlineB] = useState("");
   const [bodyCopy, setBodyCopy] = useState("");
@@ -155,9 +171,32 @@ export function AuthoringStudio() {
   const [iclKeyStep2, setIclKeyStep2] = useState<IclAttributeKey>("target_role");
   const [error, setError] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
+  const pillarFieldId = useId();
+  const mainFieldId = useId();
+  const subFieldId = useId();
 
   const imageForPreview = customUrl.trim() || headerImage;
   const portalScope = normalizePortalScope(targeting.portalScope);
+
+  const mainOptions = useMemo(
+    () => dedupePreserveCase(indexCards.map((c) => c.mainProduct)),
+    [indexCards],
+  );
+
+  const subOptions = useMemo(() => {
+    const mainKey =
+      mainMode === "add"
+        ? mainCustom.trim().toLowerCase()
+        : mainProduct.trim().toLowerCase();
+    if (!mainKey) {
+      return dedupePreserveCase(indexCards.map((c) => c.subProduct));
+    }
+    return dedupePreserveCase(
+      indexCards
+        .filter((c) => c.mainProduct.trim().toLowerCase() === mainKey)
+        .map((c) => c.subProduct),
+    );
+  }, [indexCards, mainProduct, mainMode, mainCustom]);
 
   function setPortalScope(next: PortalScopeItem[]) {
     const normalized = normalizePortalScope(next);
@@ -257,6 +296,16 @@ export function AuthoringStudio() {
     setError(null);
     setPublishing(true);
     try {
+      const resolvedMain = resolveProductValue(
+        mainMode === "add" ? ADD_NEW : mainProduct,
+        mainCustom,
+        mainOptions,
+      );
+      const resolvedSub = resolveProductValue(
+        subMode === "add" ? ADD_NEW : subProduct,
+        subCustom,
+        subOptions,
+      );
       await publishCampaign({
         campaignName: campaignName.trim(),
         headlineA: headlineA.trim(),
@@ -265,6 +314,9 @@ export function AuthoringStudio() {
         headerImage: imageForPreview,
         template,
         targeting: { ...targeting, portalScope },
+        pillar,
+        mainProduct: resolvedMain,
+        subProduct: resolvedSub,
         options:
           template === "A"
             ? optionsText
@@ -284,6 +336,13 @@ export function AuthoringStudio() {
         iclKeyStep2: template === "A" ? iclKeyStep2 : undefined,
       });
       setCampaignName("");
+      setPillar("Other");
+      setMainProduct("");
+      setSubProduct("");
+      setMainMode("pick");
+      setSubMode("pick");
+      setMainCustom("");
+      setSubCustom("");
       setHeadlineA("");
       setHeadlineB("");
       setBodyCopy("");
@@ -352,6 +411,65 @@ export function AuthoringStudio() {
               />
             </label>
 
+            <div className="space-y-3 rounded-xl border border-[#E8EEF3] bg-[#F8FAFB] p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#5A6B7A]">
+                Card Index taxonomy
+              </p>
+              <label className="block text-sm">
+                <span className="mb-1.5 block font-medium text-[#0F2537]">
+                  Pillar
+                </span>
+                <select
+                  id={pillarFieldId}
+                  value={pillar}
+                  onChange={(e) => setPillar(e.target.value as Pillar)}
+                  className={fieldClass}
+                  data-testid="studio-pillar"
+                >
+                  {PILLARS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <ProductPicker
+                  label="Main product"
+                  selectId={mainFieldId}
+                  mode={mainMode}
+                  setMode={setMainMode}
+                  selected={mainProduct}
+                  onSelect={(v) => {
+                    setMainProduct(v);
+                    setSubProduct("");
+                    setSubMode("pick");
+                    setSubCustom("");
+                  }}
+                  custom={mainCustom}
+                  onCustom={setMainCustom}
+                  options={mainOptions}
+                  testId="studio-main-product"
+                />
+                <ProductPicker
+                  label="Sub product"
+                  selectId={subFieldId}
+                  mode={subMode}
+                  setMode={setSubMode}
+                  selected={subProduct}
+                  onSelect={setSubProduct}
+                  custom={subCustom}
+                  onCustom={setSubCustom}
+                  options={subOptions}
+                  testId="studio-sub-product"
+                />
+              </div>
+              <p className="text-[11px] text-[#5A6B7A]">
+                Optional. Empty product fields are fine — the card still publishes
+                as Live in the Card Index.
+              </p>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block text-sm">
                 <span className="mb-1.5 block font-medium text-[#0F2537]">
@@ -360,7 +478,7 @@ export function AuthoringStudio() {
                 <input
                   value={headlineA}
                   onChange={(e) => setHeadlineA(e.target.value)}
-                  placeholder="Where’s your head at with your job search?"
+                  placeholder="How is your job search going?"
                   className={fieldClass}
                 />
               </label>
@@ -643,7 +761,8 @@ export function AuthoringStudio() {
                 : "Publish Campaign to Engine"}
             </button>
             <p className="text-center text-[11px] text-[#5A6B7A]">
-              Saves to {persistenceLabel} and switches to Candidate Feed View.
+              Saves to this browser, adds the card to the Card Index, and opens
+              the Candidate Feed.
             </p>
           </section>
 

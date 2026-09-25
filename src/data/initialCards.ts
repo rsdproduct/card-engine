@@ -109,7 +109,7 @@ export const initialCards: FeedCard[] = [
     id: "urgency-calibrator",
     template: "A",
     campaignName: "Urgency & Role Profiling",
-    headline: "Where’s your head at with your job search?",
+    headline: "How is your job search going?",
     headlineVariantB: "How hot is your search right now?",
     activeVariant: "A",
     subtitle: "Two quick taps — urgency first, then preferred next step.",
@@ -130,7 +130,7 @@ export const initialCards: FeedCard[] = [
       steps: [
         {
           id: "urgency-q1",
-          prompt: "Where’s your head at with your job search?",
+          prompt: "How is your job search going?",
           options: [
             { id: "actively", label: "🔥 Actively applying", value: "Actively applying" },
             { id: "quietly", label: "👀 Quietly exploring", value: "Quietly exploring" },

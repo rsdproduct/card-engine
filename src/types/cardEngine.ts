@@ -1,3 +1,5 @@
+import type { Pillar } from "@/types/cardIndex";
+
 export type PortalId = "mpr" | "rna" | "zeti" | "monster" | "boldpro";
 
 /** Category presets for multi-portal targeting */
@@ -156,6 +158,10 @@ export interface CampaignDraft {
   iclKey: IclAttributeKey;
   iclKeyStep2: IclAttributeKey;
   step2Prompt: string;
+  /** Optional Card Index taxonomy (defaults to Other / empty on publish) */
+  pillar?: Pillar;
+  mainProduct?: string;
+  subProduct?: string;
 }
 
 export interface TelemetryEvent {
