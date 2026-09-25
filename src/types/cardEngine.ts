@@ -37,6 +37,7 @@ export type IclAttributeKey =
 export type TelemetryEventType =
   | "card_impression"
   | "card_click"
+  | "demo_control"
   | "icl_attribute_updated"
   | "card_pruned"
   | "card_published"

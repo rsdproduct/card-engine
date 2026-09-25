@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useCardIndex } from "@/context/CardIndexContext";
 import { useFeedEngine } from "@/context/FeedEngineContext";
 import type { FeedCard } from "@/types/cardEngine";
-import { getCardLabel } from "@/lib/cardLabels";
+import { getCardIndexId } from "@/lib/cardLabels";
 import { GRADIENT_FALLBACK } from "@/data/imagePresets";
 import { cn } from "@/lib/utils";
 import { CardTemplateA } from "./CardTemplateA";
@@ -23,8 +23,7 @@ function displayHeadline(card: FeedCard) {
 export function UniformCard({ card }: { card: FeedCard }) {
   const { theme, recordImpression } = useFeedEngine();
   const { cards: indexCards } = useCardIndex();
-  const cardLabel = getCardLabel(card.id, indexCards, card);
-  const hasIndexLabel = indexCards.some((c) => c.sourceCardId === card.id);
+  const indexId = getCardIndexId(card.id, indexCards);
 
   useEffect(() => {
     recordImpression(card.id);
@@ -77,7 +76,7 @@ export function UniformCard({ card }: { card: FeedCard }) {
               Type {card.template}
               {card.custom ? " · Campaign" : ""}
               {card.activeVariant ? ` · Variant ${card.activeVariant}` : ""}
-              {hasIndexLabel ? ` · ${cardLabel}` : ""}
+              {indexId ? ` · ${indexId}` : ""}
             </p>
           </div>
         </div>

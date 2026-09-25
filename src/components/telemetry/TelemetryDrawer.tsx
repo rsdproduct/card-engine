@@ -7,6 +7,25 @@ import { useCardIndex } from "@/context/CardIndexContext";
 import { useFeedEngine } from "@/context/FeedEngineContext";
 import { getCardLabel } from "@/lib/cardLabels";
 import { ctrRate, getCtr, isLowPerformingVariant } from "@/lib/ranking";
+import type { FeedCard, TelemetryEvent } from "@/types/cardEngine";
+import type { IndexedCard } from "@/types/cardIndex";
+
+function eventTypeLabel(type: TelemetryEvent["type"]): string {
+  if (type === "demo_control") return "Demo control";
+  return type;
+}
+
+function displayEventMessage(
+  evt: TelemetryEvent,
+  indexCards: IndexedCard[],
+  feedCards: FeedCard[],
+): string {
+  if (!evt.cardId) return evt.message;
+  const feedCard = feedCards.find((c) => c.id === evt.cardId) ?? null;
+  const label = getCardLabel(evt.cardId, indexCards, feedCard);
+  if (!evt.message.includes(evt.cardId)) return evt.message;
+  return evt.message.split(evt.cardId).join(label);
+}
 
 export function TelemetryDrawer() {
   const {
@@ -206,26 +225,39 @@ export function TelemetryDrawer() {
                     campaign publishes, and ICL updates.
                   </p>
                 ) : (
-                  <ul className="space-y-2">
-                    {telemetry.slice(0, 40).map((evt) => (
-                      <li
-                        key={evt.id}
-                        className="rounded-xl border px-3 py-2 text-xs"
-                        style={{ borderColor: theme.border }}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold" style={{ color: theme.accent }}>
-                            {evt.type}
-                          </span>
-                          <span style={{ color: theme.muted }}>
-                            {new Date(evt.timestamp).toLocaleTimeString()}
-                          </span>
-                        </div>
-                        <p className="mt-1" style={{ color: theme.muted }}>
-                          {evt.message}
-                        </p>
-                      </li>
-                    ))}
+                  <ul className="space-y-2" data-testid="telemetry-event-stream">
+                    {telemetry.slice(0, 40).map((evt) => {
+                      const isDemoControl = evt.type === "demo_control";
+                      return (
+                        <li
+                          key={evt.id}
+                          data-testid={
+                            isDemoControl
+                              ? "telemetry-event-demo-control"
+                              : "telemetry-event"
+                          }
+                          className="rounded-xl border px-3 py-2 text-xs"
+                          style={{ borderColor: theme.border }}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span
+                              className="font-semibold"
+                              style={{
+                                color: isDemoControl ? theme.muted : theme.accent,
+                              }}
+                            >
+                              {eventTypeLabel(evt.type)}
+                            </span>
+                            <span style={{ color: theme.muted }}>
+                              {new Date(evt.timestamp).toLocaleTimeString()}
+                            </span>
+                          </div>
+                          <p className="mt-1" style={{ color: theme.muted }}>
+                            {displayEventMessage(evt, indexCards, cards)}
+                          </p>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </section>

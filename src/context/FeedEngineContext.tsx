@@ -10,7 +10,11 @@ import {
   type ReactNode,
 } from "react";
 import { initialCards } from "@/data/initialCards";
-import { portalThemes } from "@/data/portalThemes";
+import {
+  entryModifierLabels,
+  lifecycleLabels,
+  portalThemes,
+} from "@/data/portalThemes";
 import { useCardIndex } from "@/context/CardIndexContext";
 import {
   clearLocalStorage,
@@ -389,7 +393,10 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
   const setPortal = useCallback(
     (next: PortalId) => {
       setPortalState(next);
-      pushTelemetry("card_click", `Portal switched to ${portalThemes[next].name}`);
+      pushTelemetry(
+        "demo_control",
+        `Portal → ${portalThemes[next].name}`,
+      );
       showToast(`Portal: ${portalThemes[next].name}`);
     },
     [pushTelemetry, showToast],
@@ -398,7 +405,10 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
   const setLifecycle = useCallback(
     (next: LifecycleState) => {
       setLifecycleState(next);
-      pushTelemetry("card_click", `Lifecycle → ${next}`);
+      pushTelemetry(
+        "demo_control",
+        `Lifecycle → ${lifecycleLabels[next] ?? next}`,
+      );
     },
     [pushTelemetry],
   );
@@ -406,7 +416,10 @@ export function FeedEngineProvider({ children }: { children: ReactNode }) {
   const setEntryModifier = useCallback(
     (next: EntryModifier) => {
       setEntryModifierState(next);
-      pushTelemetry("card_click", `Entry modifier → ${next}`);
+      pushTelemetry(
+        "demo_control",
+        `Entry → ${entryModifierLabels[next] ?? next}`,
+      );
     },
     [pushTelemetry],
   );
